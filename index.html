@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f5138">
+  <title>لوحة معلم لعبة النباتات</title>
+  <meta name="description" content="إدارة دروس ومستويات لعبة النباتات التعليمية">
+  <link rel="stylesheet" href="styles.css?v=1.0.0">
+</head>
+<body>
+  <div class="botanical-mark" aria-hidden="true">☘</div>
+
+  <main>
+    <section id="loginView" class="login-shell" aria-labelledby="loginTitle">
+      <div class="login-card">
+        <div class="brand-badge" aria-hidden="true">🌿</div>
+        <p class="eyebrow">لعبة النباتات</p>
+        <h1 id="loginTitle">لوحة المعلم</h1>
+        <p class="muted">أدخل رمز المعلم الذي تم حفظه سابقًا في قاعدة البيانات.</p>
+
+        <form id="loginForm" class="login-form">
+          <label for="teacherPin">رمز المعلم</label>
+          <div class="pin-row">
+            <input id="teacherPin" name="teacher_pin" type="password" inputmode="text" minlength="6" autocomplete="current-password" required placeholder="••••••">
+            <button id="togglePin" class="icon-button" type="button" aria-label="إظهار الرمز">إظهار</button>
+          </div>
+          <button id="loginButton" class="primary-button" type="submit">دخول لوحة المعلم</button>
+          <p id="loginMessage" class="message" role="alert" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section id="dashboardView" class="dashboard" hidden>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">لعبة النباتات</p>
+          <h1>لوحة المعلم</h1>
+        </div>
+        <button id="logoutButton" class="secondary-button" type="button">تسجيل الخروج</button>
+      </header>
+
+      <nav class="tabs" aria-label="أقسام لوحة المعلم">
+        <button class="tab active" type="button" data-tab="lessons">الدروس</button>
+        <button class="tab" type="button" data-tab="appearance">مظهر اللعبة</button>
+        <button class="tab" type="button" data-tab="levels">المستويات</button>
+        <button class="tab" type="button" data-tab="cards">البطاقات والصور</button>
+        <button class="tab" type="button" data-tab="questions">بنك الأسئلة</button>
+        <button class="tab" type="button" data-tab="results">النتائج</button>
+        <button class="tab" type="button" data-tab="notes">الملاحظات</button>
+      </nav>
+
+      <section id="lessonsPanel" class="panel" aria-labelledby="lessonsHeading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="lessonsHeading">إدارة الدروس</h2>
+            <p>إضافة درس أو تعديل بياناته دون التأثير في النتائج السابقة.</p>
+          </div>
+          <button id="addLessonButton" class="primary-button compact" type="button">+ إضافة درس</button>
+        </div>
+        <div id="lessonsStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table>
+            <thead><tr><th>اسم الدرس</th><th>المادة</th><th>الصف</th><th>اللعب الجماعي</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <tbody id="lessonsTable"></tbody>
+          </table>
+        </div>
+        <div id="lessonsEmpty" class="empty-state" hidden>لا توجد دروس مسجلة.</div>
+      </section>
+
+      <section id="appearancePanel" class="panel" aria-labelledby="appearanceHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="appearanceHeading">مظهر اللعبة</h2>
+            <p>اختر الشكل الافتراضي وما يمكن للطالب تغييره لكل درس.</p>
+          </div>
+        </div>
+
+        <div class="appearance-toolbar">
+          <label for="appearanceLessonFilter">إعدادات درس</label>
+          <select id="appearanceLessonFilter"></select>
+        </div>
+
+        <form id="appearanceForm" class="appearance-form">
+          <section class="appearance-control-card">
+            <div>
+              <strong>لوحة المظهر في لعبة الطالب</strong>
+              <p>عند الإخفاء يُطبق التصميم والوضع الافتراضيان مباشرة.</p>
+            </div>
+            <label class="switch-field">
+              <input id="appearancePanelEnabled" type="checkbox">
+              <span>إظهار للطالب</span>
+            </label>
+          </section>
+
+          <div class="appearance-workspace">
+            <div class="appearance-settings">
+              <section class="appearance-section">
+                <div class="appearance-section-heading">
+                  <div><h3>التصميم الافتراضي</h3><p>اختر تصميم هذا الدرس؛ وخيار «متاح» يحدد التصاميم الظاهرة في جميع الدروس.</p></div>
+                  <label class="compact-check"><input id="allowStudentThemeChoice" type="checkbox"> السماح للطالب بتغيير التصميم</label>
+                </div>
+                <div id="adminThemeChoices" class="admin-theme-choices"></div>
+              </section>
+
+              <section class="appearance-section">
+                <div class="appearance-section-heading">
+                  <div><h3>شكل البطاقات الافتراضي</h3><p>اختر وضع هذا الدرس؛ وخيار «متاح» يحدد الأوضاع الظاهرة في جميع الدروس.</p></div>
+                  <label class="compact-check"><input id="allowStudentModeChoice" type="checkbox"> السماح للطالب بتغيير شكل البطاقات</label>
+                </div>
+                <div id="adminModeChoices" class="admin-mode-choices"></div>
+              </section>
+            </div>
+
+            <aside class="appearance-live-card" aria-label="معاينة المظهر المختار">
+              <p class="eyebrow">معاينة الاختيار</p>
+              <div id="appearanceLivePreview" class="appearance-live-preview" data-mode="normal">
+                <img id="appearancePreviewImage" src="assets/theme-05-preview.webp" alt="معاينة التصميم المختار">
+                <span class="admin-preview-card card-a"></span>
+                <span class="admin-preview-card card-b"></span>
+                <span class="admin-preview-card card-c"></span>
+              </div>
+              <strong id="appearancePreviewTitle">الدفيئة المرحة</strong>
+              <span id="appearancePreviewMode">عادي</span>
+            </aside>
+          </div>
+
+          <div class="appearance-save-row">
+            <p id="appearanceStatus" class="inline-status" role="status" aria-live="polite"></p>
+            <button id="saveAppearanceButton" class="primary-button" type="submit">حفظ إعدادات المظهر</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="levelsPanel" class="panel" aria-labelledby="levelsHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="levelsHeading">إدارة المستويات</h2>
+            <p>عدد البطاقات وتوزيع الصفوف وإعدادات المستوى قابلة للتعديل في أي وقت.</p>
+          </div>
+          <button id="addLevelButton" class="primary-button compact" type="button">+ إضافة مستوى</button>
+        </div>
+        <div class="filter-row">
+          <label for="lessonFilter">عرض مستويات درس</label>
+          <select id="lessonFilter"></select>
+        </div>
+        <section class="level-sequence-card" aria-labelledby="levelSequenceTitle">
+          <label class="level-sequence-option" for="sequentialLevelsEnabled">
+            <input id="sequentialLevelsEnabled" type="checkbox">
+            <span>
+              <strong id="levelSequenceTitle">فتح المستويات بالتتابع</strong>
+              <small>لا يفتح المستوى التالي للطالب إلا بعد إكمال المستوى السابق. المستويات المعطلة تُتجاوز تلقائيًا.</small>
+            </span>
+          </label>
+          <div class="level-sequence-actions">
+            <button id="saveLevelSequenceButton" class="primary-button compact" type="button">حفظ الإعداد</button>
+            <p id="levelSequenceStatus" class="inline-status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
+        <div id="levelsStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table>
+            <thead><tr><th>المستوى</th><th>البطاقات</th><th>توزيع الصفوف</th><th>الصعوبة</th><th>زمن السؤال</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <tbody id="levelsTable"></tbody>
+          </table>
+        </div>
+        <div id="levelsEmpty" class="empty-state" hidden>لا توجد مستويات لهذا الدرس.</div>
+      </section>
+
+      <section id="cardsPanel" class="panel" aria-labelledby="cardsHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="cardsHeading">إدارة البطاقات والصور</h2>
+            <p>إضافة صور الأزواج وتعديلها وتعطيلها دون حذف السجلات السابقة.</p>
+          </div>
+          <button id="addCardButton" class="primary-button compact" type="button">+ إضافة بطاقة</button>
+        </div>
+        <div class="filter-row">
+          <label for="cardLessonFilter">عرض بطاقات درس</label>
+          <select id="cardLessonFilter"></select>
+        </div>
+        <div id="cardsStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table>
+            <thead><tr><th>الصورة</th><th>عنوان البطاقة</th><th>الموضوع</th><th>النسخ</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <tbody id="cardsTable"></tbody>
+          </table>
+        </div>
+        <div id="cardsEmpty" class="empty-state" hidden>لا توجد بطاقات لهذا الدرس.</div>
+      </section>
+
+      <section id="questionsPanel" class="panel" aria-labelledby="questionsHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="questionsHeading">إدارة بنك الأسئلة</h2>
+            <p>إضافة الأسئلة وتعديلها ونسخها ومعاينتها قبل ظهورها للطالب.</p>
+          </div>
+          <button id="addQuestionButton" class="primary-button compact" type="button">+ إضافة سؤال</button>
+        </div>
+        <div class="question-filters">
+          <label>الدرس<select id="questionLessonFilter"></select></label>
+          <label>الموضوع<select id="questionTopicFilter"><option value="">كل الموضوعات</option></select></label>
+          <label>الصعوبة<select id="questionDifficultyFilter"><option value="">الكل</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+          <label>المستوى المعرفي<select id="questionCognitiveFilter"><option value="">الكل</option><option>تذكر</option><option>فهم</option><option>تطبيق</option><option>تحليل</option><option>استنتاج</option><option>تقويم</option></select></label>
+          <label class="search-field">بحث<input id="questionSearch" type="search" placeholder="ابحث في نص السؤال…"></label>
+        </div>
+        <div id="questionsStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table class="questions-table">
+            <thead><tr><th>السؤال</th><th>الموضوع</th><th>النوع</th><th>الصعوبة</th><th>تفكير عالٍ</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <tbody id="questionsTable"></tbody>
+          </table>
+        </div>
+        <div id="questionsEmpty" class="empty-state" hidden>لا توجد أسئلة مطابقة للتصفية.</div>
+      </section>
+
+      <section id="resultsPanel" class="panel" aria-labelledby="resultsHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="resultsHeading">نتائج الطلاب</h2>
+            <p>عرض المحاولات والدرجات والأسئلة الخاطئة، مع إمكانية حذف النتائج المحددة.</p>
+          </div>
+          <div class="heading-actions">
+            <button id="deleteAllResultsButton" class="danger-button compact danger-outline" type="button">حذف جميع النتائج</button>
+            <button id="deleteSelectedResultsButton" class="danger-button compact" type="button" disabled>حذف المحدد</button>
+            <button id="exportResultsButton" class="secondary-button compact" type="button">تصدير النتائج</button>
+            <button id="exportErrorsButton" class="secondary-button compact" type="button">تصدير الأخطاء</button>
+            <button id="refreshResultsButton" class="secondary-button compact" type="button">تحديث النتائج</button>
+          </div>
+        </div>
+        <div class="result-filters">
+          <label>الدرس<select id="resultLessonFilter"></select></label>
+          <label>الفصل<select id="resultClassFilter"><option value="">كل الفصول</option></select></label>
+          <label>التاريخ<input id="resultDateFilter" type="date"></label>
+          <label class="search-field">اسم الطالب<input id="resultSearch" type="search" placeholder="ابحث باسم الطالب…"></label>
+        </div>
+        <div id="resultSummary" class="summary-grid" aria-label="ملخص النتائج"></div>
+        <div id="resultsStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table class="results-table">
+            <thead><tr><th class="select-column"><input id="selectAllResults" class="result-checkbox" type="checkbox" aria-label="تحديد جميع النتائج الظاهرة"></th><th>الطالب</th><th>الفصل</th><th>المستوى</th><th>الدرجة</th><th>صحيح</th><th>خطأ</th><th>النجوم</th><th>المدة</th><th>التاريخ</th><th>التفاصيل</th></tr></thead>
+            <tbody id="resultsTable"></tbody>
+          </table>
+        </div>
+        <div id="resultsEmpty" class="empty-state" hidden>لا توجد نتائج مطابقة للتصفية.</div>
+      </section>
+
+      <section id="notesPanel" class="panel" aria-labelledby="notesHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="notesHeading">ملاحظات الطلاب</h2>
+            <p>عرض الملاحظات والشكر والبلاغات التقنية الواردة من اللعبة.</p>
+          </div>
+          <div class="heading-actions">
+            <button id="exportNotesButton" class="secondary-button compact" type="button">تصدير الملاحظات</button>
+            <button id="refreshNotesButton" class="secondary-button compact" type="button">تحديث الملاحظات</button>
+          </div>
+        </div>
+        <div class="result-filters">
+          <label>الدرس<select id="noteLessonFilter"></select></label>
+          <label>الفصل<select id="noteClassFilter"><option value="">كل الفصول</option></select></label>
+          <label>النوع<select id="noteTypeFilter"><option value="">كل الأنواع</option><option value="student">ملاحظة طالب</option><option value="teacher">ملاحظة تعليمية</option><option value="technical">بلاغ تقني</option></select></label>
+          <label>التاريخ<input id="noteDateFilter" type="date"></label>
+          <label class="search-field">بحث<input id="noteSearch" type="search" placeholder="اسم الطالب أو نص الملاحظة…"></label>
+        </div>
+        <div id="notesStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table class="notes-table">
+            <thead><tr><th>الطالب</th><th>الفصل</th><th>النوع</th><th>الملاحظة</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+            <tbody id="notesTable"></tbody>
+          </table>
+        </div>
+        <div id="notesEmpty" class="empty-state" hidden>لا توجد ملاحظات مطابقة للتصفية.</div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="recordDialog">
+    <form id="recordForm" method="dialog">
+      <div class="dialog-heading">
+        <h2 id="dialogTitle">إضافة</h2>
+        <button id="closeDialogButton" class="icon-button close" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <div id="formFields" class="form-grid"></div>
+      <p id="formMessage" class="message" role="alert" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="cancelDialogButton" class="secondary-button" type="button">إلغاء</button>
+        <button id="saveRecordButton" class="primary-button" type="submit">حفظ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="questionPreviewDialog" class="preview-dialog">
+    <div class="preview-shell">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">معاينة السؤال</p><h2 id="previewQuestionTitle">السؤال</h2></div>
+        <button id="closePreviewButton" class="icon-button close" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <p id="previewQuestionText" class="preview-question-text"></p>
+      <div id="previewOptions" class="preview-options"></div>
+      <div id="previewFeedback" class="preview-feedback"></div>
+    </div>
+  </dialog>
+
+  <dialog id="resultErrorsDialog" class="result-errors-dialog">
+    <div class="preview-shell">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">تفاصيل المحاولة</p><h2 id="resultErrorsTitle">الأسئلة الخاطئة</h2></div>
+        <button id="closeResultErrorsButton" class="icon-button close" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <div id="resultErrorsSummary" class="attempt-summary"></div>
+      <div id="resultTeamBreakdown" class="team-breakdown" hidden></div>
+      <div id="resultLevelBreakdown" class="level-breakdown"></div>
+      <div id="resultErrorsList" class="error-list"></div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="app.js?v=1.0.0" defer></script>
+</body>
+</html>
