@@ -255,11 +255,8 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 
 .toast { position: fixed; left: 22px; bottom: 22px; z-index: 10; max-width: min(420px, calc(100% - 44px)); padding: 14px 18px; color: #fff; background: var(--green-950); border-radius: 13px; box-shadow: var(--shadow); font-weight: 700; }
 
-@media (max-width: 950px) {
-  .botanical-mark { display: none; }
-}
-
 @media (max-width: 680px) {
+  .botanical-mark { display: none; }
   main { width: min(100% - 20px, 1180px); }
   .login-card { padding: 28px 20px; border-radius: 22px; }
   .topbar, .panel-heading { align-items: stretch; flex-direction: column; }
@@ -295,3 +292,6 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 .usage-unused { display: inline-block; padding: 5px 9px; border-radius: 999px; color: #7b4d00; background: var(--gold-soft); font-weight: 800; white-space: nowrap; }
 .unused-question-row { background: #fffaf0; }
 .question-usage-table small { color: var(--muted); }
+
+/* Decorative plant removed from the interface */
+.botanical-mark { display: none !important; }
