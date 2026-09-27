@@ -283,3 +283,11 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
   .dialog-actions { flex-direction: column-reverse; }
   .dialog-actions button { width: 100%; }
 }
+
+.question-usage-dialog { width: min(980px, calc(100% - 24px)); }
+.question-usage-table { min-width: 760px; }
+.usage-table-shell { max-height: 55vh; overflow: auto; }
+.usage-help { margin: -8px 0 16px; }
+.usage-unused { display: inline-block; padding: 5px 9px; border-radius: 999px; color: #7b4d00; background: var(--gold-soft); font-weight: 800; white-space: nowrap; }
+.unused-question-row { background: #fffaf0; }
+.question-usage-table small { color: var(--muted); }

@@ -195,7 +195,7 @@
             <h2 id="questionsHeading">إدارة بنك الأسئلة</h2>
             <p>إضافة الأسئلة وتعديلها ونسخها ومعاينتها قبل ظهورها للطالب.</p>
           </div>
-          <button id="addQuestionButton" class="primary-button compact" type="button">+ إضافة سؤال</button>
+          <div class="heading-actions"><button id="questionUsageButton" class="secondary-button compact" type="button">إحصائيات استخدام الأسئلة</button><button id="addQuestionButton" class="primary-button compact" type="button">+ إضافة سؤال</button></div>
         </div>
         <div class="question-filters">
           <label>الدرس<select id="questionLessonFilter"></select></label>
@@ -312,6 +312,25 @@
       <div id="resultTeamBreakdown" class="team-breakdown" hidden></div>
       <div id="resultLevelBreakdown" class="level-breakdown"></div>
       <div id="resultErrorsList" class="error-list"></div>
+    </div>
+  </dialog>
+
+
+  <dialog id="questionUsageDialog" class="question-usage-dialog">
+    <div class="preview-shell">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">بنك الأسئلة</p><h2>إحصائيات استخدام الأسئلة</h2></div>
+        <button id="closeQuestionUsageButton" class="icon-button close" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <p class="muted usage-help">الإحصائيات للدرس المحدد حاليًا في بنك الأسئلة، وتحسب من سجل إجابات الطلاب.</p>
+      <div id="questionUsageSummary" class="summary-grid"></div>
+      <div class="table-shell usage-table-shell">
+        <table class="question-usage-table">
+          <thead><tr><th>السؤال</th><th>مرات الظهور</th><th>صحيح</th><th>خطأ</th><th>الإجراء</th></tr></thead>
+          <tbody id="questionUsageTable"></tbody>
+        </table>
+      </div>
+      <div id="questionUsageEmpty" class="empty-state" hidden>لا توجد أسئلة في هذا الدرس.</div>
     </div>
   </dialog>
 

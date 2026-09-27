@@ -587,6 +587,56 @@ function renderQuestions() {
     </tr>`).join('');
 }
 
+function questionUsageStats() {
+  const stats = new Map(state.questions.map((question) => [String(question.question_id), {
+    question,
+    shown: 0,
+    correct: 0,
+    wrong: 0
+  }]));
+  state.answerLogs.forEach((answer) => {
+    const item = stats.get(String(answer.question_id));
+    if (!item) return;
+    item.shown += 1;
+    if (activeValue(answer.is_correct)) item.correct += 1;
+    else item.wrong += 1;
+  });
+  return [...stats.values()];
+}
+
+function renderQuestionUsageStats() {
+  const lessonId = $('#questionLessonFilter').value || state.lessons[0]?.lesson_id || '';
+  const rows = questionUsageStats()
+    .filter((item) => !lessonId || String(item.question.lesson_id) === String(lessonId))
+    .sort((a, b) => b.shown - a.shown || b.wrong - a.wrong || String(a.question.question_id).localeCompare(String(b.question.question_id), 'ar'));
+  const unused = rows.filter((item) => item.shown === 0).length;
+  const totalShown = rows.reduce((sum, item) => sum + item.shown, 0);
+  const totalWrong = rows.reduce((sum, item) => sum + item.wrong, 0);
+  $('#questionUsageSummary').innerHTML = [
+    ['الأسئلة', rows.length],
+    ['لم تُستخدم', unused],
+    ['مرات الظهور', totalShown],
+    ['الإجابات الخاطئة', totalWrong]
+  ].map(([label, value]) => `<div class="summary-card"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+  $('#questionUsageTable').innerHTML = rows.map((item) => {
+    const correctRate = item.shown ? Math.round((item.correct / item.shown) * 100) : 0;
+    const wrongRate = item.shown ? Math.round((item.wrong / item.shown) * 100) : 0;
+    return `<tr class="${item.shown === 0 ? 'unused-question-row' : ''}">
+      <td class="question-cell"><strong>${escapeHtml(item.question.question_id)}</strong><br>${escapeHtml(item.question.question_text || '—')}</td>
+      <td>${item.shown ? escapeHtml(item.shown) : '<span class="usage-unused">لم يُستخدم</span>'}</td>
+      <td>${escapeHtml(item.correct)}${item.shown ? ` <small>(${correctRate}٪)</small>` : ''}</td>
+      <td>${escapeHtml(item.wrong)}${item.shown ? ` <small>(${wrongRate}٪)</small>` : ''}</td>
+      <td><button class="row-button" type="button" data-usage-edit-question="${escapeHtml(item.question.question_id)}">تعديل السؤال</button></td>
+    </tr>`;
+  }).join('');
+  $('#questionUsageEmpty').hidden = rows.length > 0;
+}
+
+function showQuestionUsageDialog() {
+  renderQuestionUsageStats();
+  $('#questionUsageDialog').showModal();
+}
+
 async function loadResults() {
   const status = $('#resultsStatus');
   const button = $('#refreshResultsButton');
@@ -604,6 +654,7 @@ async function loadResults() {
     state.levelResults = levelResultsData.rows || [];
     state.teamResults = teamResultsData.rows || [];
     updateResultClassFilter();
+    if ($('#questionUsageDialog')?.open) renderQuestionUsageStats();
     renderResults();
   } catch (error) {
     status.textContent = error.message;
@@ -1005,6 +1056,7 @@ $('#questionTopicFilter').addEventListener('change', renderQuestions);
 $('#questionDifficultyFilter').addEventListener('change', renderQuestions);
 $('#questionCognitiveFilter').addEventListener('change', renderQuestions);
 $('#questionSearch').addEventListener('input', renderQuestions);
+$('#questionUsageButton').addEventListener('click', showQuestionUsageDialog);
 $('#resultLessonFilter').addEventListener('change', () => { updateResultClassFilter(); renderResults(); });
 $('#resultClassFilter').addEventListener('change', renderResults);
 $('#resultDateFilter').addEventListener('change', renderResults);
@@ -1047,6 +1099,7 @@ document.addEventListener('click', async (event) => {
   const previewQuestion = event.target.closest('[data-preview-question]');
   const toggleQuestion = event.target.closest('[data-toggle-question]');
   const viewResultErrors = event.target.closest('[data-view-result-errors]');
+  const usageEditQuestion = event.target.closest('[data-usage-edit-question]');
   if (editLesson) openEditor('lesson', state.lessons.find((row) => row.lesson_id === editLesson.dataset.editLesson));
   if (toggleGroupMode) await toggleLessonGroupMode(toggleGroupMode.dataset.toggleGroupMode, toggleGroupMode);
   if (toggleLesson) await toggleEntityActive('lessons', toggleLesson.dataset.toggleLesson, toggleLesson);
@@ -1059,6 +1112,10 @@ document.addEventListener('click', async (event) => {
   if (previewQuestion) showQuestionPreview(state.questions.find((row) => row.question_id === previewQuestion.dataset.previewQuestion));
   if (toggleQuestion) await toggleEntityActive('questions', toggleQuestion.dataset.toggleQuestion, toggleQuestion);
   if (viewResultErrors) showResultErrors(state.results.find((row) => String(row.result_id) === String(viewResultErrors.dataset.viewResultErrors)));
+  if (usageEditQuestion) {
+    $('#questionUsageDialog').close();
+    openEditor('question', state.questions.find((row) => String(row.question_id) === String(usageEditQuestion.dataset.usageEditQuestion)));
+  }
 });
 
 document.addEventListener('change', (event) => {
@@ -1165,7 +1222,7 @@ function openEditor(type, record = null, copyMode = false) {
       field('max_difficulty', 'أعلى صعوبة', record?.max_difficulty || 1, { type: 'number', min: 1, max: 4, required: true }),
       field('question_time_seconds', 'زمن السؤال بالثواني', record?.question_time_seconds || 30, { type: 'number', min: 5, max: 300, required: true }),
       field('hints_allowed', 'عدد التلميحات', record?.hints_allowed || 0, { type: 'number', min: 0, max: 20, required: true }),
-      field('unlock_rule', 'قاعدة فتح المستوى', record?.unlock_rule || 'always', { full: true }),
+      field('unlock_rule', 'قاعدة فتح المستوى', record?.unlock_rule || 'always', { type: 'select', items: [{ value: 'always', label: 'مفتوح دائمًا' }, { value: 'complete_previous', label: 'بعد إكمال المستوى السابق' }], required: true, full: true }),
       field('sort_order', 'ترتيب المستوى', record?.sort_order || state.levels.length + 1, { type: 'number', min: 1, max: 100, required: true }),
       field('active', 'المستوى مفعّل', record ? record.active : true, { type: 'checkbox' })
     ].join('');
@@ -1492,6 +1549,7 @@ $('#closeDialogButton').addEventListener('click', () => recordDialog.close());
 $('#cancelDialogButton').addEventListener('click', () => recordDialog.close());
 $('#closePreviewButton').addEventListener('click', () => $('#questionPreviewDialog').close());
 $('#closeResultErrorsButton').addEventListener('click', () => $('#resultErrorsDialog').close());
+$('#closeQuestionUsageButton').addEventListener('click', () => $('#questionUsageDialog').close());
 
 const savedPin = sessionStorage.getItem('plants_teacher_pin');
 if (savedPin) {
