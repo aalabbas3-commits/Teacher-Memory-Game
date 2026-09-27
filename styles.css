@@ -255,8 +255,11 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 
 .toast { position: fixed; left: 22px; bottom: 22px; z-index: 10; max-width: min(420px, calc(100% - 44px)); padding: 14px 18px; color: #fff; background: var(--green-950); border-radius: 13px; box-shadow: var(--shadow); font-weight: 700; }
 
-@media (max-width: 680px) {
+@media (max-width: 950px) {
   .botanical-mark { display: none; }
+}
+
+@media (max-width: 680px) {
   main { width: min(100% - 20px, 1180px); }
   .login-card { padding: 28px 20px; border-radius: 22px; }
   .topbar, .panel-heading { align-items: stretch; flex-direction: column; }
