@@ -293,5 +293,5 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 .unused-question-row { background: #fffaf0; }
 .question-usage-table small { color: var(--muted); }
 
-/* Decorative plant removed from the interface */
+/* Decorative plant permanently disabled */
 .botanical-mark { display: none !important; }
