@@ -295,3 +295,8 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 
 /* Decorative plant permanently disabled */
 .botanical-mark { display: none !important; }
+
+
+/* حالات إتاحة الدروس */
+#lockedMessageField[hidden],
+#accessCodeField[hidden] { display: none !important; }

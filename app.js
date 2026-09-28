@@ -235,6 +235,18 @@ async function loadLevels() {
   }
 }
 
+function lessonAccessBadge(lesson) {
+  const status = String(lesson?.lesson_status || 'available').trim().toLowerCase();
+  const map = {
+    available: ['متاح', 'active'],
+    locked: ['🔒 مغلق', 'inactive'],
+    code: ['🔑 بالكود', 'visible'],
+    hidden: ['مخفي', 'inactive']
+  };
+  const item = map[status] || map.available;
+  return `<span class="status-badge ${item[1]}">${item[0]}</span>`;
+}
+
 function renderLessons() {
   const tbody = $('#lessonsTable');
   $('#lessonsEmpty').hidden = state.lessons.length > 0;
@@ -244,11 +256,10 @@ function renderLessons() {
       <td>${escapeHtml(lesson.subject || '—')}</td>
       <td>${escapeHtml(lesson.grade || '—')}</td>
       <td>${visibilityBadge(lesson.group_mode_enabled)}</td>
-      <td>${statusBadge(lesson.active)}</td>
+      <td>${lessonAccessBadge(lesson)}</td>
       <td><div class="row-actions">
         <button class="row-button" type="button" data-edit-lesson="${escapeHtml(lesson.lesson_id)}">تعديل</button>
         <button class="row-button ${activeValue(lesson.group_mode_enabled) ? 'danger' : 'activate'}" type="button" data-toggle-group-mode="${escapeHtml(lesson.lesson_id)}">${activeValue(lesson.group_mode_enabled) ? 'إخفاء الجماعي' : 'إظهار الجماعي'}</button>
-        <button class="row-button ${activeValue(lesson.active) ? 'danger' : 'activate'}" type="button" data-toggle-lesson="${escapeHtml(lesson.lesson_id)}">${activeValue(lesson.active) ? 'تعطيل' : 'تفعيل'}</button>
       </div></td>
     </tr>`).join('');
 }
@@ -1277,6 +1288,22 @@ function setupLevelLayoutEditor(savedLayout) {
   renderLevelLayoutPreview();
 }
 
+function setupLessonAccessEditor() {
+  const status = recordForm.elements.lesson_status;
+  const lockedField = $('#lockedMessageField');
+  const codeField = $('#accessCodeField');
+  if (!status || !lockedField || !codeField) return;
+  const refresh = () => {
+    lockedField.hidden = status.value !== 'locked';
+    codeField.hidden = status.value !== 'code';
+    if (status.value === 'locked' && !recordForm.elements.locked_message.value.trim()) {
+      recordForm.elements.locked_message.value = 'قريبًا';
+    }
+  };
+  status.addEventListener('change', refresh);
+  refresh();
+}
+
 function openEditor(type, record = null, copyMode = false) {
   state.editingType = type;
   state.editingRecord = record && !copyMode ? record : null;
@@ -1290,9 +1317,22 @@ function openEditor(type, record = null, copyMode = false) {
       field('subject', 'المادة', record?.subject || 'العلوم', { required: true }),
       field('grade', 'الصف', record?.grade || 'الخامس الابتدائي', { required: true }),
       field('source_file', 'اسم ملف المصدر', record?.source_file || '', { full: true }),
-      field('group_mode_enabled', 'إظهار اللعب الجماعي للطلاب', record ? record.group_mode_enabled : true, { type: 'checkbox' }),
-      field('active', 'الدرس مفعّل', record ? record.active : true, { type: 'checkbox' })
+      field('lesson_status', 'حالة الدرس', record?.lesson_status || 'available', {
+        type: 'select',
+        items: [
+          { value: 'available', label: 'متاح' },
+          { value: 'locked', label: 'مغلق' },
+          { value: 'code', label: 'الدخول بالكود' },
+          { value: 'hidden', label: 'مخفي' }
+        ],
+        required: true,
+        full: true
+      }),
+      `<label id="lockedMessageField" class="field full">رسالة الدرس المغلق<input name="locked_message" type="text" maxlength="180" value="${escapeHtml(record?.locked_message || 'قريبًا')}" placeholder="قريبًا"></label>`,
+      `<label id="accessCodeField" class="field full">كود الدخول<input name="access_code" type="text" maxlength="80" value="${escapeHtml(record?.access_code || '')}" autocomplete="off" placeholder="اكتب كود الدخول"></label>`,
+      field('group_mode_enabled', 'إظهار اللعب الجماعي للطلاب', record ? record.group_mode_enabled : true, { type: 'checkbox' })
     ].join('');
+    setupLessonAccessEditor();
   } else if (type === 'level') {
     $('#dialogTitle').textContent = editing ? 'تعديل المستوى' : 'إضافة مستوى';
     const lessonItems = state.lessons.map((lesson) => ({ value: lesson.lesson_id, label: lesson.lesson_name }));
@@ -1393,8 +1433,17 @@ recordForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   formMessage.textContent = '';
   const values = Object.fromEntries(new FormData(recordForm).entries());
-  values.active = Boolean(recordForm.elements.active?.checked);
-  if (state.editingType === 'lesson') values.group_mode_enabled = Boolean(recordForm.elements.group_mode_enabled?.checked);
+  values.active = state.editingType === 'lesson' ? true : Boolean(recordForm.elements.active?.checked);
+  if (state.editingType === 'lesson') {
+    values.group_mode_enabled = Boolean(recordForm.elements.group_mode_enabled?.checked);
+    values.active = true;
+    values.locked_message = String(values.locked_message || 'قريبًا').trim() || 'قريبًا';
+    values.access_code = String(values.access_code || '').trim();
+    if (values.lesson_status === 'code' && !values.access_code) {
+      formMessage.textContent = 'أدخل كود الدخول للدرس.';
+      return;
+    }
+  }
   if (state.editingType === 'question') {
     values.higher_order = Boolean(recordForm.elements.higher_order?.checked);
     ['difficulty', 'points', 'time_seconds'].forEach((key) => { values[key] = Number(values[key]); });
