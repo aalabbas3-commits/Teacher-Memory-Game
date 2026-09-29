@@ -435,12 +435,21 @@ function updateLessonFilter() {
 
   const resultFilter = $('#resultLessonFilter');
   const lessonOptions = $('#resultLessonOptions');
-  if (lessonOptions) lessonOptions.innerHTML = state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_name)}"></option>`).join('');
+  if (lessonOptions) {
+    const lessonEntries = state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_name)}"></option>`);
+    const challengeEntries = state.challenges.map((challenge) => `<option value="${escapeHtml(`تحدي: ${challenge.challenge_name}`)}"></option>`);
+    lessonOptions.innerHTML = [...lessonEntries, ...challengeEntries].join('');
+  }
 
   const noteFilter = $('#noteLessonFilter');
   const selectedNoteLesson = noteFilter.value;
-  noteFilter.innerHTML = state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_id)}">${escapeHtml(lesson.lesson_name)}</option>`).join('');
-  noteFilter.value = state.lessons.some((row) => row.lesson_id === selectedNoteLesson) ? selectedNoteLesson : (state.lessons[0]?.lesson_id || '');
+  const noteOptions = [
+    ...state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_id)}">${escapeHtml(lesson.lesson_name)}</option>`),
+    ...state.challenges.map((challenge) => `<option value="${escapeHtml(`CHALLENGE__${challenge.challenge_id}`)}">${escapeHtml(`تحدي: ${challenge.challenge_name}`)}</option>`)
+  ];
+  noteFilter.innerHTML = noteOptions.join('');
+  const validNoteIds = new Set([...state.lessons.map((row) => String(row.lesson_id)), ...state.challenges.map((row) => `CHALLENGE__${row.challenge_id}`)]);
+  noteFilter.value = validNoteIds.has(String(selectedNoteLesson)) ? selectedNoteLesson : (state.lessons[0]?.lesson_id || '');
 }
 
 function renderLevels() {
@@ -912,7 +921,12 @@ function resultLessonFilterId() {
   if (!raw) return '';
   const normalized = normalizeArabicText(raw);
   const lesson = state.lessons.find((l) => String(l.lesson_id) === raw || normalizeArabicText(l.lesson_name) === normalized);
-  return lesson ? String(lesson.lesson_id) : '__NO_MATCH__';
+  if (lesson) return String(lesson.lesson_id);
+  const challenge = state.challenges.find((c) => {
+    const virtualId = `CHALLENGE__${c.challenge_id}`;
+    return virtualId === raw || normalizeArabicText(`تحدي: ${c.challenge_name}`) === normalized || normalizeArabicText(c.challenge_name) === normalized;
+  });
+  return challenge ? `CHALLENGE__${challenge.challenge_id}` : '__NO_MATCH__';
 }
 
 function resultStatusFilterValue() {
@@ -1000,7 +1014,11 @@ function formatDuration(value) {
 }
 
 function levelName(levelId) {
-  if (String(levelId) === 'LESSON_TOTAL') return 'الدرس كاملًا';
+  if (String(levelId) === 'LESSON_TOTAL') return 'الجولة كاملة';
+  if (String(levelId).startsWith('CHALLENGE_LEVEL__')) {
+    const challengeId = String(levelId).slice('CHALLENGE_LEVEL__'.length);
+    return state.challenges.find((row) => String(row.challenge_id) === challengeId)?.challenge_name || 'التحدي';
+  }
   return state.levels.find((level) => String(level.level_id) === String(levelId))?.level_name || levelId || '—';
 }
 
@@ -1073,8 +1091,15 @@ function filteredResults() {
 }
 
 function lessonNameById(id) {
-  return state.lessons.find((l) => String(l.lesson_id) === String(id))?.lesson_name || id || '—';
+  const value = String(id || '');
+  if (value.startsWith('CHALLENGE__')) {
+    const challengeId = value.slice('CHALLENGE__'.length);
+    const challenge = state.challenges.find((row) => String(row.challenge_id) === challengeId);
+    return challenge ? `تحدي: ${challenge.challenge_name}` : 'تحدي';
+  }
+  return state.lessons.find((l) => String(l.lesson_id) === value)?.lesson_name || value || '—';
 }
+
 
 function renderResults() {
   const isLog = state.resultsView === 'log';
@@ -1363,7 +1388,7 @@ function exportResults() {
   const rows = filteredResults();
   const headers = ['رقم النتيجة', 'اسم الطالب', 'الفصل', 'المدرسة', 'الدرس', 'المستوى', 'رقم المحاولة', 'الأزواج المتطابقة', 'الإجابات الصحيحة', 'الإجابات الخاطئة', 'الدرجة', 'النجوم', 'المدة بالثواني', 'مكتملة', 'تاريخ اللعب'];
   const data = rows.map((result) => [
-    result.result_id, result.student_name, result.class_name, result.school_name, result.lesson_id,
+    result.result_id, result.student_name, result.class_name, result.school_name, lessonNameById(result.lesson_id),
     levelName(result.level_id), result.attempt_no, result.matched_pairs, result.correct_answers,
     result.wrong_answers, result.score, result.stars, result.duration_seconds,
     trueValue(result.completed) ? 'نعم' : 'لا', formatResultDate(result.played_at)
