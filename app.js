@@ -1,4 +1,5 @@
 'use strict';
+// الإصدار: 1.0.3
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyfeSB3gvBHTfHuCwozfPG-GUflo6AmJmer8HJSUStmY_IdCutZWJdnHTsVfIfdpHfc/exec';
 
