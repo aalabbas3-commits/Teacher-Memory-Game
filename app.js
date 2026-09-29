@@ -19,6 +19,7 @@ const state = {
   answerLogs: [],
   notes: [],
   selectedResultIds: new Set(),
+  selectedSessionIds: new Set(),
   resultsView: 'best',
   activeTab: 'lessons',
   editingType: '',
@@ -884,7 +885,7 @@ function sessionResult(session) {
 function sessionLogRows() {
   return state.studentSessions.map((session) => {
     const result = sessionResult(session);
-    return { ...session, result_id: result?.result_id || '', score: result?.score ?? '', correct_answers: result?.correct_answers ?? 0, wrong_answers: result?.wrong_answers ?? 0, completed: result ? activeValue(result.completed) : String(session.status||'').toLowerCase()==='completed', played_at: result?.played_at || session.started_at };
+    return { ...session, result_id: result?.result_id || '', score: result?.score ?? '', correct_answers: result?.correct_answers ?? 0, wrong_answers: result?.wrong_answers ?? 0, duration_seconds: result?.duration_seconds ?? '', completed: result ? activeValue(result.completed) : String(session.status||'').toLowerCase()==='completed', played_at: result?.played_at || session.started_at };
   }).filter((r) => resultMatchesFilters(r, true)).sort((a,b) => new Date(b.started_at||b.played_at||0)-new Date(a.started_at||a.played_at||0));
 }
 
@@ -920,11 +921,11 @@ function renderResults() {
     const students=new Set(rows.map(r=>[normalizeArabicText(r.student_name),normalizeClassName(r.class_name),normalizeSchoolName(r.school_name)].join('|'))).size;
     $('#resultSummary').innerHTML = [['مرات الدخول',rows.length],['الطلاب',students],['جولات مكتملة',completed],['جولات غير مكتملة',incomplete]].map(([l,v])=>`<div class="summary-card"><span>${l}</span><strong>${escapeHtml(v)}</strong></div>`).join('');
     $('#resultsStatus').textContent = `${rows.length} جولة في سجل الدخول`;
-    $('#resultsTableHead').innerHTML = '<tr><th>الطالب</th><th>الفصل</th><th>المدرسة</th><th>الدرس</th><th>الحالة</th><th>الدرجة</th><th>بدأت</th><th>آخر حالة</th><th>التفاصيل</th></tr>';
-    $('#resultsTable').innerHTML = rows.map((r)=>`<tr><td><strong>${escapeHtml(r.student_name||'—')}</strong></td><td>${escapeHtml(r.class_name||'—')}</td><td>${escapeHtml(r.school_name||'—')}</td><td>${escapeHtml(lessonNameById(r.lesson_id))}</td><td><span class="status-pill ${activeValue(r.completed)?'is-active':'is-inactive'}">${activeValue(r.completed)?'مكتملة':'غير مكتملة'}</span></td><td>${escapeHtml(r.score===''?'—':r.score)}</td><td>${escapeHtml(formatResultDate(r.started_at||r.played_at))}</td><td>${escapeHtml(r.status|| (activeValue(r.completed)?'completed':'incomplete'))}</td><td>${r.result_id?`<button class="row-button" type="button" data-view-result-errors="${escapeHtml(r.result_id)}">عرض التفاصيل</button>`:'—'}</td></tr>`).join('');
+    $('#resultsTableHead').innerHTML = '<tr><th class="select-column"><input id="selectAllSessions" class="result-checkbox" type="checkbox" aria-label="تحديد جميع الجولات الظاهرة"></th><th>الطالب</th><th>الفصل</th><th>المدرسة</th><th>الدرس</th><th>الحالة</th><th>الدرجة</th><th>بدأت</th><th>المدة</th><th>التفاصيل</th></tr>';
+    $('#resultsTable').innerHTML = rows.map((r)=>`<tr><td class="select-column"><input class="result-checkbox" type="checkbox" data-select-session="${escapeHtml(r.session_id)}" ${state.selectedSessionIds.has(String(r.session_id))?'checked':''}></td><td><strong>${escapeHtml(r.student_name||'—')}</strong></td><td>${escapeHtml(r.class_name||'—')}</td><td>${escapeHtml(r.school_name||'—')}</td><td>${escapeHtml(lessonNameById(r.lesson_id))}</td><td><span class="status-pill ${activeValue(r.completed)?'is-active':'is-inactive'}">${activeValue(r.completed)?'مكتملة':'غير مكتملة'}</span></td><td>${escapeHtml(r.score===''?'—':r.score)}</td><td>${escapeHtml(formatResultDate(r.started_at||r.played_at))}</td><td>${escapeHtml(formatDuration(r.duration_seconds))}</td><td>${r.result_id?`<button class="row-button" type="button" data-view-result-errors="${escapeHtml(r.result_id)}">عرض التفاصيل</button>`:'—'}</td></tr>`).join('');
   }
   $('#resultsEmpty').hidden = rows.length > 0;
-  if (!isLog) updateResultSelectionUi(rows); else { $('#deleteSelectedResultsButton').disabled=true; }
+  if (!isLog) updateResultSelectionUi(rows); else updateSessionSelectionUi(rows);
 }
 
 function updateResultSelectionUi(visibleRows = filteredResults()) {
@@ -938,6 +939,40 @@ function updateResultSelectionUi(visibleRows = filteredResults()) {
   deleteButton.disabled = count === 0;
   deleteButton.textContent = count ? `حذف المحدد (${count})` : 'حذف المحدد';
   $('#deleteAllResultsButton').disabled = state.results.length === 0;
+}
+
+function updateSessionSelectionUi(visibleRows = sessionLogRows()) {
+  const existingIds = new Set(state.studentSessions.map((row) => String(row.session_id)));
+  state.selectedSessionIds = new Set([...state.selectedSessionIds].filter((id) => existingIds.has(id)));
+  const visibleIds = visibleRows.map((row) => String(row.session_id)).filter(Boolean);
+  const visibleSelected = visibleIds.filter((id) => state.selectedSessionIds.has(id)).length;
+  const selectAll = $('#selectAllSessions');
+  if (selectAll) {
+    selectAll.checked = visibleIds.length > 0 && visibleSelected === visibleIds.length;
+    selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visibleIds.length;
+  }
+  const deleteButton = $('#deleteSelectedResultsButton');
+  const count = state.selectedSessionIds.size;
+  deleteButton.disabled = count === 0;
+  deleteButton.textContent = count ? `حذف المحدد (${count})` : 'حذف المحدد';
+}
+
+async function deleteSelectedSessions() {
+  const sessionIds = [...state.selectedSessionIds];
+  if (!sessionIds.length) return;
+  if (!window.confirm(`سيتم حذف ${sessionIds.length} جولة محددة وكل البيانات المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟`)) return;
+  const button = $('#deleteSelectedResultsButton');
+  button.disabled = true;
+  button.textContent = 'جارٍ الحذف…';
+  try {
+    const deleted = await api('teacher_delete_sessions', { session_ids: sessionIds });
+    state.selectedSessionIds.clear();
+    await loadResults();
+    showToast(`تم حذف ${deleted.deleted_sessions || sessionIds.length} جولة.`);
+  } catch (error) {
+    showToast(error.message);
+    updateSessionSelectionUi();
+  }
 }
 
 async function deleteSelectedResults() {
@@ -1242,7 +1277,7 @@ $('#resultStudentFilter').addEventListener('input', renderResults);
 $('#refreshResultsButton').addEventListener('click', loadResults);
 $('#exportResultsButton').addEventListener('click', exportResults);
 $('#exportErrorsButton').addEventListener('click', exportErrors);
-$('#deleteSelectedResultsButton').addEventListener('click', deleteSelectedResults);
+$('#deleteSelectedResultsButton').addEventListener('click', () => state.resultsView === 'log' ? deleteSelectedSessions() : deleteSelectedResults());
 $('#deleteAllResultsButton').addEventListener('click', deleteAllResults);
 
 $('#noteLessonFilter').addEventListener('change', () => { updateNoteClassFilter(); renderNotes(); });
@@ -1291,6 +1326,9 @@ document.addEventListener('click', async (event) => {
 
 document.addEventListener('change', (event) => {
   if (event.target.id === 'selectAllResults') { bestCompletedResults().forEach((result) => { const id=String(result.result_id); if(event.target.checked) state.selectedResultIds.add(id); else state.selectedResultIds.delete(id); }); renderResults(); return; }
+  if (event.target.id === 'selectAllSessions') { sessionLogRows().forEach((row) => { const id=String(row.session_id); if(event.target.checked) state.selectedSessionIds.add(id); else state.selectedSessionIds.delete(id); }); renderResults(); return; }
+  const sessionCheckbox = event.target.closest('[data-select-session]');
+  if (sessionCheckbox) { const id=String(sessionCheckbox.dataset.selectSession); if(sessionCheckbox.checked) state.selectedSessionIds.add(id); else state.selectedSessionIds.delete(id); updateSessionSelectionUi(); return; }
   const checkbox = event.target.closest('[data-select-result]');
   if (!checkbox) return;
   const id = String(checkbox.dataset.selectResult);
