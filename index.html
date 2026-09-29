@@ -232,12 +232,12 @@
           <button id="roundLogTab" class="results-view-tab" type="button" data-results-view="log">سجل الدخول والجولات</button>
         </div>
         <div class="result-filters">
-          <label>الدرس<select id="resultLessonFilter"><option value="">كل الدروس</option></select></label>
-          <label>المدرسة<select id="resultSchoolFilter"><option value="">كل المدارس</option></select></label>
-          <label>الفصل<select id="resultClassFilter"><option value="">كل الفصول</option></select></label>
-          <label id="resultStatusFilterWrap">حالة الجولة<select id="resultStatusFilter"><option value="">كل الحالات</option><option value="completed">مكتملة</option><option value="incomplete">غير مكتملة</option></select></label>
+          <label>الدرس<input id="resultLessonFilter" type="search" list="resultLessonOptions" placeholder="كل الدروس" autocomplete="off"><datalist id="resultLessonOptions"></datalist></label>
+          <label>المدرسة<input id="resultSchoolFilter" type="search" list="resultSchoolOptions" placeholder="كل المدارس" autocomplete="off"><datalist id="resultSchoolOptions"></datalist></label>
+          <label>الفصل<input id="resultClassFilter" type="search" list="resultClassOptions" placeholder="كل الفصول" autocomplete="off"><datalist id="resultClassOptions"></datalist></label>
+          <label id="resultStatusFilterWrap">حالة الجولة<input id="resultStatusFilter" type="search" list="resultStatusOptions" placeholder="كل الحالات" autocomplete="off"><datalist id="resultStatusOptions"><option value="مكتملة"></option><option value="غير مكتملة"></option></datalist></label>
           <label>التاريخ<input id="resultDateFilter" type="date"></label>
-          <label>اسم الطالب<select id="resultStudentFilter"><option value="">كل الطلاب</option></select></label>
+          <label>اسم الطالب<input id="resultStudentFilter" type="search" list="resultStudentOptions" placeholder="كل الطلاب" autocomplete="off"><datalist id="resultStudentOptions"></datalist></label>
         </div>
         <div id="resultSummary" class="summary-grid" aria-label="ملخص النتائج"></div>
         <div id="resultsStatus" class="inline-status" aria-live="polite"></div>

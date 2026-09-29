@@ -429,9 +429,8 @@ function updateLessonFilter() {
   questionFilter.value = state.lessons.some((row) => row.lesson_id === selectedQuestionLesson) ? selectedQuestionLesson : (state.lessons[0]?.lesson_id || '');
 
   const resultFilter = $('#resultLessonFilter');
-  const selectedResultLesson = resultFilter.value;
-  resultFilter.innerHTML = '<option value="">كل الدروس</option>' + state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_id)}">${escapeHtml(lesson.lesson_name)}</option>`).join('');
-  resultFilter.value = state.lessons.some((row) => row.lesson_id === selectedResultLesson) ? selectedResultLesson : '';
+  const lessonOptions = $('#resultLessonOptions');
+  if (lessonOptions) lessonOptions.innerHTML = state.lessons.map((lesson) => `<option value="${escapeHtml(lesson.lesson_name)}"></option>`).join('');
 
   const noteFilter = $('#noteLessonFilter');
   const selectedNoteLesson = noteFilter.value;
@@ -728,6 +727,22 @@ function normalizeSchoolName(value) {
     .trim();
 }
 
+function resultLessonFilterId() {
+  const raw = String($('#resultLessonFilter')?.value || '').trim();
+  if (!raw) return '';
+  const normalized = normalizeArabicText(raw);
+  const lesson = state.lessons.find((l) => String(l.lesson_id) === raw || normalizeArabicText(l.lesson_name) === normalized);
+  return lesson ? String(lesson.lesson_id) : '__NO_MATCH__';
+}
+
+function resultStatusFilterValue() {
+  const raw = normalizeArabicText($('#resultStatusFilter')?.value || '');
+  if (!raw) return '';
+  if (raw === normalizeArabicText('مكتملة') || raw === 'completed') return 'completed';
+  if (raw === normalizeArabicText('غير مكتملة') || raw === 'incomplete') return 'incomplete';
+  return '__NO_MATCH__';
+}
+
 function resultFilterSourceRows() {
   if (state.resultsView === 'log') {
     return state.studentSessions.map((session) => {
@@ -740,69 +755,45 @@ function resultFilterSourceRows() {
 
 function updateResultStudentFilter() {
   const filter = $('#resultStudentFilter');
-  if (!filter) return;
-  const selected = filter.value;
-  const lessonId = $('#resultLessonFilter').value;
-  const schoolKey = $('#resultSchoolFilter')?.value || '';
-  const classKey = $('#resultClassFilter').value;
+  const list = $('#resultStudentOptions');
+  if (!filter || !list) return;
+  const lessonId = resultLessonFilterId();
+  const schoolText = String($('#resultSchoolFilter')?.value || '').trim();
+  const classText = String($('#resultClassFilter')?.value || '').trim();
+  const schoolKey = schoolText ? normalizeSchoolName(schoolText) : '';
+  const classKey = classText ? normalizeClassName(classText) : '';
   const students = new Map();
   resultFilterSourceRows()
-    .filter((r) => !lessonId || String(r.lesson_id) === String(lessonId))
+    .filter((r) => !lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id) === lessonId))
     .filter((r) => !schoolKey || normalizeSchoolName(r.school_name) === schoolKey)
     .filter((r) => !classKey || normalizeClassName(r.class_name) === classKey)
-    .forEach((r) => {
-      const name = String(r.student_name || '').trim();
-      if (!name) return;
-      const key = normalizeArabicText(name);
-      if (!students.has(key)) students.set(key, name);
-    });
-  const rows = [...students.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar'));
-  filter.innerHTML = '<option value="">كل الطلاب</option>' + rows.map(([key,label])=>`<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
-  filter.value = rows.some(([key])=>key===selected) ? selected : '';
+    .forEach((r) => { const name=String(r.student_name||'').trim(); if(name) students.set(normalizeArabicText(name), name); });
+  list.innerHTML = [...students.values()].sort((a,b)=>a.localeCompare(b,'ar')).map((name)=>`<option value="${escapeHtml(name)}"></option>`).join('');
 }
 
 function updateResultSchoolFilter() {
-  const lessonId = $('#resultLessonFilter').value;
-  const filter = $('#resultSchoolFilter');
-  const selected = filter.value;
+  const list = $('#resultSchoolOptions');
+  if (!list) return;
+  const lessonId = resultLessonFilterId();
   const groups = new Map();
-
   resultFilterSourceRows()
-    .filter((result) => !lessonId || String(result.lesson_id) === String(lessonId))
-    .forEach((result) => {
-      const original = String(result.school_name || '').trim();
-      if (!original) return;
-      const key = normalizeSchoolName(original);
-      if (!groups.has(key)) groups.set(key, original);
-    });
-
-  const schools = [...groups.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ar'));
-  filter.innerHTML = '<option value="">كل المدارس</option>' +
-    schools.map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
-  filter.value = schools.some(([key]) => key === selected) ? selected : '';
+    .filter((r) => !lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id) === lessonId))
+    .forEach((r)=>{ const original=String(r.school_name||'').trim(); if(original && !groups.has(normalizeSchoolName(original))) groups.set(normalizeSchoolName(original),original); });
+  list.innerHTML=[...groups.values()].sort((a,b)=>a.localeCompare(b,'ar')).map((v)=>`<option value="${escapeHtml(v)}"></option>`).join('');
 }
 
 function updateResultClassFilter() {
-  const lessonId = $('#resultLessonFilter').value;
-  const schoolKey = $('#resultSchoolFilter')?.value || '';
-  const filter = $('#resultClassFilter');
-  const selected = filter.value;
-  const groups = new Map();
-
+  const list = $('#resultClassOptions');
+  if (!list) return;
+  const lessonId = resultLessonFilterId();
+  const schoolText=String($('#resultSchoolFilter')?.value||'').trim();
+  const schoolKey=schoolText?normalizeSchoolName(schoolText):'';
+  const groups=new Map();
   resultFilterSourceRows()
-    .filter((result) => !lessonId || String(result.lesson_id) === String(lessonId))
-    .filter((result) => !schoolKey || normalizeSchoolName(result.school_name) === schoolKey)
-    .forEach((result) => {
-      const original = String(result.class_name || '').trim();
-      if (!original) return;
-      const key = normalizeClassName(original);
-      if (!groups.has(key)) groups.set(key, classDisplayName(key, original));
-    });
-
-  const classes = [...groups.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ar'));
-  filter.innerHTML = '<option value="">كل الفصول</option>' +
-    classes.map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
-  filter.value = classes.some(([key]) => key === selected) ? selected : '';
+    .filter((r)=>!lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id)===lessonId))
+    .filter((r)=>!schoolKey || normalizeSchoolName(r.school_name)===schoolKey)
+    .forEach((r)=>{ const original=String(r.class_name||'').trim(); if(original){const key=normalizeClassName(original); if(!groups.has(key)) groups.set(key,classDisplayName(key,original));}});
+  list.innerHTML=[...groups.values()].sort((a,b)=>a.localeCompare(b,'ar')).map((v)=>`<option value="${escapeHtml(v)}"></option>`).join('');
 }
 
 function resultDateKey(value) {
@@ -841,17 +832,21 @@ function resultStageLabel(result) {
 }
 
 function resultMatchesFilters(result, includeStatus = true) {
-  const lessonId = $('#resultLessonFilter').value;
-  const schoolKey = $('#resultSchoolFilter')?.value || '';
-  const classKey = $('#resultClassFilter').value;
-  const roundStatus = $('#resultStatusFilter')?.value || '';
+  const lessonId = resultLessonFilterId();
+  const schoolText = String($('#resultSchoolFilter')?.value || '').trim();
+  const classText = String($('#resultClassFilter')?.value || '').trim();
+  const schoolKey = schoolText ? normalizeSchoolName(schoolText) : '';
+  const classKey = classText ? normalizeClassName(classText) : '';
+  const roundStatus = resultStatusFilterValue();
   const date = $('#resultDateFilter').value;
-  const studentKey = $('#resultStudentFilter')?.value || '';
-  if (lessonId && String(result.lesson_id) !== String(lessonId)) return false;
+  const studentText = String($('#resultStudentFilter')?.value || '').trim();
+  const studentKey = studentText ? normalizeArabicText(studentText) : '';
+  if (lessonId && (lessonId === '__NO_MATCH__' || String(result.lesson_id) !== lessonId)) return false;
   if (schoolKey && normalizeSchoolName(result.school_name) !== schoolKey) return false;
   if (classKey && normalizeClassName(result.class_name) !== classKey) return false;
   if (includeStatus && roundStatus === 'completed' && !activeValue(result.completed)) return false;
   if (includeStatus && roundStatus === 'incomplete' && activeValue(result.completed)) return false;
+  if (includeStatus && roundStatus === '__NO_MATCH__') return false;
   if (date && resultDateKey(result.played_at || result.started_at) !== date) return false;
   if (studentKey && normalizeArabicText(result.student_name) !== studentKey) return false;
   return true;
@@ -909,9 +904,9 @@ function renderResults() {
   $('#completedResultsTab').classList.toggle('active', !isLog);
   $('#roundLogTab').classList.toggle('active', isLog);
   $('#resultStatusFilterWrap').hidden = !isLog;
-  $('#deleteSelectedResultsButton').hidden = isLog;
-  $('#deleteAllResultsButton').hidden = isLog;
-  $('#exportErrorsButton').hidden = isLog;
+  $('#deleteSelectedResultsButton').hidden = false;
+  $('#deleteAllResultsButton').hidden = false;
+  $('#exportErrorsButton').hidden = false;
   $('#selectAllResults').closest('th').hidden = isLog;
 
   if (!isLog) {
@@ -1231,14 +1226,20 @@ $('#questionDifficultyFilter').addEventListener('change', renderQuestions);
 $('#questionCognitiveFilter').addEventListener('change', renderQuestions);
 $('#questionSearch').addEventListener('input', renderQuestions);
 $('#questionUsageButton').addEventListener('click', showQuestionUsageDialog);
-$('#resultLessonFilter').addEventListener('change', () => { updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
-$('#resultSchoolFilter').addEventListener('change', () => { updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
-$('#resultClassFilter').addEventListener('change', () => { updateResultStudentFilter(); renderResults(); });
-$('#resultStatusFilter').addEventListener('change', renderResults);
-$('#completedResultsTab').addEventListener('click', () => { state.resultsView = 'best'; updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
-$('#roundLogTab').addEventListener('click', () => { state.resultsView = 'log'; updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#resultLessonFilter').addEventListener('input', () => { updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#resultSchoolFilter').addEventListener('input', () => { updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#resultClassFilter').addEventListener('input', () => { updateResultStudentFilter(); renderResults(); });
+$('#resultStatusFilter').addEventListener('input', renderResults);
+function switchResultsView(view) {
+  state.resultsView = view === 'log' ? 'log' : 'best';
+  if (state.resultsView === 'best') $('#resultStatusFilter').value = '';
+  updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter();
+  renderResults();
+}
+$('#completedResultsTab').addEventListener('click', (event) => { event.preventDefault(); switchResultsView('best'); });
+$('#roundLogTab').addEventListener('click', (event) => { event.preventDefault(); switchResultsView('log'); });
 $('#resultDateFilter').addEventListener('change', renderResults);
-$('#resultStudentFilter').addEventListener('change', renderResults);
+$('#resultStudentFilter').addEventListener('input', renderResults);
 $('#refreshResultsButton').addEventListener('click', loadResults);
 $('#exportResultsButton').addEventListener('click', exportResults);
 $('#exportErrorsButton').addEventListener('click', exportErrors);
