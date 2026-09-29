@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5138">
   <title>لوحة معلم لعبة النباتات</title>
   <meta name="description" content="إدارة دروس ومستويات لعبة النباتات التعليمية">
-  <link rel="stylesheet" href="styles.css?v=1.0.3">
+  <link rel="stylesheet" href="styles.css?v=1.0.5">
 </head>
 <body>
 
@@ -45,6 +45,7 @@
         <button class="tab" type="button" data-tab="levels">المستويات</button>
         <button class="tab" type="button" data-tab="cards">البطاقات والصور</button>
         <button class="tab" type="button" data-tab="questions">بنك الأسئلة</button>
+        <button class="tab" type="button" data-tab="challenges">التحدي</button>
         <button class="tab" type="button" data-tab="results">النتائج</button>
         <button class="tab" type="button" data-tab="notes">الملاحظات</button>
       </nav>
@@ -206,11 +207,44 @@
         <div id="questionsStatus" class="inline-status" aria-live="polite"></div>
         <div class="table-shell">
           <table class="questions-table">
-            <thead><tr><th>السؤال</th><th>الموضوع</th><th>النوع</th><th>الصعوبة</th><th>تفكير عالٍ</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <thead><tr><th>السؤال</th><th>الموضوع</th><th>النوع</th><th>الصعوبة</th><th>تفكير عالٍ</th><th>التحدي</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
             <tbody id="questionsTable"></tbody>
           </table>
         </div>
         <div id="questionsEmpty" class="empty-state" hidden>لا توجد أسئلة مطابقة للتصفية.</div>
+      </section>
+
+      <section id="challengesPanel" class="panel" aria-labelledby="challengesHeading" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="challengesHeading">إدارة التحديات</h2>
+            <p>أنشئ تحديات لدرس واحد أو عدة دروس. القسم العام مخفي عن الطلاب افتراضيًا.</p>
+          </div>
+          <button id="addChallengeButton" class="primary-button compact" type="button">+ إضافة تحدٍ</button>
+        </div>
+
+        <section class="challenge-section-control" aria-labelledby="challengeSectionTitle">
+          <div>
+            <strong id="challengeSectionTitle">ظهور قسم التحديات للطلاب</strong>
+            <p id="challengeSectionState">قسم التحديات مخفي بالكامل عن الطلاب حاليًا.</p>
+          </div>
+          <div class="challenge-section-actions">
+            <label class="switch-field">
+              <input id="challengeSectionEnabled" type="checkbox">
+              <span>إظهار القسم</span>
+            </label>
+            <button id="saveChallengeSectionButton" class="secondary-button compact" type="button">حفظ الحالة</button>
+          </div>
+        </section>
+
+        <div id="challengesStatus" class="inline-status" aria-live="polite"></div>
+        <div class="table-shell">
+          <table class="challenges-table">
+            <thead><tr><th>التحدي</th><th>الدروس المرتبطة</th><th>البطاقات</th><th>زمن السؤال</th><th>الإتاحة</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
+            <tbody id="challengesTable"></tbody>
+          </table>
+        </div>
+        <div id="challengesEmpty" class="empty-state" hidden>لا توجد تحديات بعد.</div>
       </section>
 
       <section id="resultsPanel" class="panel" aria-labelledby="resultsHeading" hidden>
@@ -340,6 +374,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="app.js?v=1.0.3" defer></script>
+  <script src="app.js?v=1.0.5" defer></script>
 </body>
 </html>

@@ -1,5 +1,4 @@
 'use strict';
-// الإصدار: 1.0.3
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyfeSB3gvBHTfHuCwozfPG-GUflo6AmJmer8HJSUStmY_IdCutZWJdnHTsVfIfdpHfc/exec';
 
@@ -13,6 +12,8 @@ const state = {
   topics: [],
   cards: [],
   questions: [],
+  challenges: [],
+  challengeLessons: [],
   results: [],
   levelResults: [],
   teamResults: [],
@@ -190,12 +191,14 @@ async function loadAll() {
     loadLessons(),
     loadLevels(),
     loadTopics(),
-    loadAppearanceData()
+    loadAppearanceData(),
+    loadChallenges()
   ]);
   updateLessonFilter();
   updateAppearanceLessonFilter();
   renderAppearancePanel();
   renderLevels();
+  renderChallenges();
 
   Promise.all([
     loadCards(),
@@ -591,6 +594,7 @@ function renderQuestions() {
       <td>${escapeHtml(questionTypeName(question.question_type))}</td>
       <td>${escapeHtml(question.difficulty || '—')}</td>
       <td>${activeValue(question.higher_order) ? '<span class="hots-pill">نعم</span>' : 'لا'}</td>
+      <td>${activeValue(question['التحدي']) ? '<span class="status-pill active">✓</span>' : '—'}</td>
       <td>${statusBadge(question.active)}</td>
       <td><div class="row-actions">
         <button class="row-button" type="button" data-preview-question="${escapeHtml(question.question_id)}">معاينة</button>
@@ -649,6 +653,180 @@ function renderQuestionUsageStats() {
 function showQuestionUsageDialog() {
   renderQuestionUsageStats();
   $('#questionUsageDialog').showModal();
+}
+
+
+function challengeStatusBadge(challenge) {
+  const status = String(challenge?.challenge_status || 'hidden').trim().toLowerCase();
+  const map = {
+    available: ['متاح', 'active'],
+    locked: ['🔒 مغلق', 'inactive'],
+    code: ['🔑 بالكود', 'visible'],
+    hidden: ['مخفي', 'inactive']
+  };
+  const item = map[status] || map.hidden;
+  return `<span class="status-badge ${item[1]}">${item[0]}</span>`;
+}
+
+function challengeSectionSetting() {
+  return state.settings.find((row) =>
+    String(row.setting_id || '') === 'SETTING_GLOBAL_CHALLENGE_SECTION_ENABLED' ||
+    (String(row.lesson_id || '') === 'GLOBAL' && String(row.setting_key || '') === 'challenge_section_enabled')
+  );
+}
+
+function challengeSectionEnabled() {
+  const row = challengeSectionSetting();
+  return row ? activeValue(row.active) && activeValue(row.setting_value) : false;
+}
+
+async function loadChallenges() {
+  const status = $('#challengesStatus');
+  if (status) status.textContent = 'جارٍ تحميل التحديات…';
+  try {
+    const [challengeData, linkData] = await Promise.all([
+      api('teacher_list', { params: { sheet: 'challenges', limit: 500 } }),
+      api('teacher_list', { params: { sheet: 'challenge_lessons', limit: 2000 } })
+    ]);
+    state.challenges = challengeData.rows || [];
+    state.challengeLessons = linkData.rows || [];
+    renderChallenges();
+  } catch (error) {
+    if (status) status.textContent = error.message;
+  }
+}
+
+function challengeLessonIds(challengeId) {
+  return state.challengeLessons
+    .filter((row) => String(row.challenge_id) === String(challengeId) && activeValue(row.active))
+    .sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+    .map((row) => String(row.lesson_id));
+}
+
+function challengeLessonNames(challengeId) {
+  return challengeLessonIds(challengeId)
+    .map((id) => state.lessons.find((lesson) => String(lesson.lesson_id) === id)?.lesson_name || id);
+}
+
+function renderChallenges() {
+  const tbody = $('#challengesTable');
+  if (!tbody) return;
+  const enabled = challengeSectionEnabled();
+  $('#challengeSectionEnabled').checked = enabled;
+  $('#challengeSectionState').textContent = enabled
+    ? 'قسم التحديات مفعّل للطلاب. لا يظهر إلا التحديات غير المخفية.'
+    : 'قسم التحديات مخفي بالكامل عن الطلاب حاليًا.';
+  $('#challengeSectionState').classList.toggle('warning', !enabled);
+
+  const rows = [...state.challenges].sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  tbody.innerHTML = rows.map((challenge) => {
+    const lessons = challengeLessonNames(challenge.challenge_id);
+    return `<tr>
+      <td><strong>${escapeHtml(challenge.challenge_name || '—')}</strong><br><small>${escapeHtml(challenge.challenge_id || '')}</small></td>
+      <td>${lessons.length ? lessons.map(escapeHtml).join('، ') : '<span class="muted">لا يوجد درس مرتبط</span>'}</td>
+      <td>${escapeHtml(challenge.card_count || '—')}</td>
+      <td>${escapeHtml(challenge.question_time_seconds || '—')} ثانية</td>
+      <td>${challengeStatusBadge(challenge)}</td>
+      <td>${statusBadge(challenge.active)}</td>
+      <td><div class="row-actions">
+        <button class="row-button" type="button" data-edit-challenge="${escapeHtml(challenge.challenge_id)}">تعديل</button>
+        <button class="row-button ${activeValue(challenge.active) ? 'danger' : 'activate'}" type="button" data-toggle-challenge="${escapeHtml(challenge.challenge_id)}">${activeValue(challenge.active) ? 'تعطيل' : 'تفعيل'}</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  $('#challengesEmpty').hidden = rows.length > 0;
+  $('#challengesStatus').textContent = `${rows.length} تحدٍ`;
+}
+
+async function saveChallengeSectionSetting() {
+  const enabled = $('#challengeSectionEnabled').checked;
+  const button = $('#saveChallengeSectionButton');
+  if (enabled && !window.confirm('سيتم السماح مستقبلًا بظهور قسم التحديات للطلاب حسب حالة كل تحدٍ. هل تريد تفعيل القسم العام؟')) {
+    $('#challengeSectionEnabled').checked = false;
+    return;
+  }
+  setBusy(button, true, 'جارٍ الحفظ…');
+  try {
+    await api('teacher_save_challenge_section', { data: { enabled } });
+    let row = challengeSectionSetting();
+    if (!row) {
+      row = { setting_id:'SETTING_GLOBAL_CHALLENGE_SECTION_ENABLED', lesson_id:'GLOBAL', setting_key:'challenge_section_enabled', active:true };
+      state.settings.push(row);
+    }
+    row.setting_value = enabled;
+    renderChallenges();
+    showToast(enabled ? 'تم تفعيل قسم التحديات.' : 'تم إخفاء قسم التحديات بالكامل.');
+  } catch (error) {
+    showToast(error.message);
+    $('#challengeSectionEnabled').checked = !enabled;
+  } finally {
+    setBusy(button, false, '');
+  }
+}
+
+function setupChallengeAccessEditor() {
+  const status = recordForm.elements.challenge_status;
+  if (!status) return;
+  const lockedField = $('#challengeLockedMessageField');
+  const codeField = $('#challengeAccessCodeField');
+  const refresh = () => {
+    lockedField.hidden = status.value !== 'locked';
+    codeField.hidden = status.value !== 'code';
+    if (status.value === 'locked' && !recordForm.elements.locked_message.value.trim()) {
+      recordForm.elements.locked_message.value = 'قريبًا';
+    }
+  };
+  status.addEventListener('change', refresh);
+  refresh();
+}
+
+function openChallengeEditor(record = null) {
+  state.editingType = 'challenge';
+  state.editingRecord = record || null;
+  formMessage.textContent = '';
+  const editing = Boolean(record);
+  $('#dialogTitle').textContent = editing ? 'تعديل التحدي' : 'إضافة تحدٍ';
+  const selectedLessonIds = new Set(editing ? challengeLessonIds(record.challenge_id) : []);
+  const statusValue = editing ? (record.challenge_status || 'hidden') : 'hidden';
+  const lessonChecks = state.lessons.map((lesson) =>
+    `<label class="challenge-lesson-check"><input type="checkbox" name="challenge_lesson_ids" value="${escapeHtml(lesson.lesson_id)}" ${selectedLessonIds.has(String(lesson.lesson_id)) ? 'checked' : ''}> <span>${escapeHtml(lesson.lesson_name)}</span></label>`
+  ).join('');
+  formFields.innerHTML = [
+    field('challenge_id', 'رمز التحدي', record?.challenge_id || '', { required: true }),
+    field('challenge_name', 'اسم التحدي', record?.challenge_name || '', { required: true }),
+    `<label class="field full">الوصف<textarea name="description">${escapeHtml(record?.description || '')}</textarea></label>`,
+    `<fieldset class="challenge-lessons-field full"><legend>الدروس المشاركة في التحدي</legend><p class="field-hint">يمكن اختيار درس واحد أو عدة دروس.</p><div class="challenge-lesson-list">${lessonChecks}</div></fieldset>`,
+    field('card_count', 'عدد البطاقات', record?.card_count || 8, { type:'number', min:2, max:60, required:true }),
+    `<div class="layout-field full">
+      <label class="field">توزيع البطاقات على الصفوف<input name="row_layout" inputmode="numeric" value="${escapeHtml(record?.row_layout || '4-4')}" placeholder="مثال: 4-4" required></label>
+      <div id="layoutSuggestions" class="layout-suggestions"></div>
+      <div id="layoutPreview" class="layout-preview"></div>
+      <p id="layoutValidationHint" class="field-hint"></p>
+    </div>`,
+    field('min_difficulty', 'أقل صعوبة', record?.min_difficulty || 1, { type:'number', min:1, max:4, required:true }),
+    field('max_difficulty', 'أعلى صعوبة', record?.max_difficulty || 4, { type:'number', min:1, max:4, required:true }),
+    field('question_time_seconds', 'زمن السؤال بالثواني', record?.question_time_seconds || 20, { type:'number', min:5, max:600, required:true }),
+    field('challenge_status', 'حالة التحدي', statusValue, {
+      type:'select',
+      items:[
+        {value:'available',label:'متاح'},
+        {value:'locked',label:'مغلق'},
+        {value:'code',label:'الدخول بالكود'},
+        {value:'hidden',label:'مخفي'}
+      ],
+      required:true,
+      full:true
+    }),
+    `<label id="challengeLockedMessageField" class="field full">رسالة التحدي المغلق<input name="locked_message" type="text" maxlength="180" value="${escapeHtml(record?.locked_message || 'قريبًا')}" placeholder="قريبًا"></label>`,
+    `<label id="challengeAccessCodeField" class="field full">كود الدخول<input name="access_code" type="text" maxlength="80" value="${escapeHtml(record?.access_code || '')}" autocomplete="off"></label>`,
+    field('sort_order', 'ترتيب التحدي', record?.sort_order || state.challenges.length + 1, { type:'number', min:1, max:9999, required:true }),
+    field('active', 'التحدي مفعّل', editing ? record.active : true, { type:'checkbox' })
+  ].join('');
+  const idInput = recordForm.elements.challenge_id;
+  if (editing) idInput.readOnly = true;
+  setupLevelLayoutEditor(record?.row_layout || '4-4');
+  setupChallengeAccessEditor();
+  recordDialog.showModal();
 }
 
 async function loadResults() {
@@ -1225,12 +1403,14 @@ $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
   $('#levelsPanel').hidden = state.activeTab !== 'levels';
   $('#cardsPanel').hidden = state.activeTab !== 'cards';
   $('#questionsPanel').hidden = state.activeTab !== 'questions';
+  $('#challengesPanel').hidden = state.activeTab !== 'challenges';
   $('#resultsPanel').hidden = state.activeTab !== 'results';
   $('#notesPanel').hidden = state.activeTab !== 'notes';
   if (state.activeTab === 'appearance') renderAppearancePanel();
   if (state.activeTab === 'levels') renderLevels();
   if (state.activeTab === 'cards') renderCards();
   if (state.activeTab === 'questions') renderQuestions();
+  if (state.activeTab === 'challenges') renderChallenges();
   if (state.activeTab === 'results') renderResults();
   if (state.activeTab === 'notes') renderNotes();
 }));
@@ -1292,6 +1472,8 @@ $('#addLessonButton').addEventListener('click', () => openEditor('lesson'));
 $('#addLevelButton').addEventListener('click', () => openEditor('level'));
 $('#addCardButton').addEventListener('click', () => openEditor('card'));
 $('#addQuestionButton').addEventListener('click', () => openEditor('question'));
+$('#addChallengeButton').addEventListener('click', () => openChallengeEditor());
+$('#saveChallengeSectionButton').addEventListener('click', saveChallengeSectionSetting);
 
 document.addEventListener('click', async (event) => {
   const editLesson = event.target.closest('[data-edit-lesson]');
@@ -1307,6 +1489,8 @@ document.addEventListener('click', async (event) => {
   const toggleQuestion = event.target.closest('[data-toggle-question]');
   const viewResultErrors = event.target.closest('[data-view-result-errors]');
   const usageEditQuestion = event.target.closest('[data-usage-edit-question]');
+  const editChallenge = event.target.closest('[data-edit-challenge]');
+  const toggleChallenge = event.target.closest('[data-toggle-challenge]');
   if (editLesson) openEditor('lesson', state.lessons.find((row) => row.lesson_id === editLesson.dataset.editLesson));
   if (toggleGroupMode) await toggleLessonGroupMode(toggleGroupMode.dataset.toggleGroupMode, toggleGroupMode);
   if (toggleLesson) await toggleEntityActive('lessons', toggleLesson.dataset.toggleLesson, toggleLesson);
@@ -1319,6 +1503,8 @@ document.addEventListener('click', async (event) => {
   if (previewQuestion) showQuestionPreview(state.questions.find((row) => row.question_id === previewQuestion.dataset.previewQuestion));
   if (toggleQuestion) await toggleEntityActive('questions', toggleQuestion.dataset.toggleQuestion, toggleQuestion);
   if (viewResultErrors) showResultErrors(state.results.find((row) => String(row.result_id) === String(viewResultErrors.dataset.viewResultErrors)));
+  if (editChallenge) openChallengeEditor(state.challenges.find((row) => String(row.challenge_id) === String(editChallenge.dataset.editChallenge)));
+  if (toggleChallenge) await toggleEntityActive('challenges', toggleChallenge.dataset.toggleChallenge, toggleChallenge);
   if (usageEditQuestion) {
     $('#questionUsageDialog').close();
     openEditor('question', state.questions.find((row) => String(row.question_id) === String(usageEditQuestion.dataset.usageEditQuestion)));
@@ -1527,6 +1713,7 @@ function openEditor(type, record = null, copyMode = false) {
       field('points', 'النقاط', record?.points || 1, { type: 'number', min: 0, max: 100, required: true }),
       field('time_seconds', 'زمن الإجابة بالثواني', record?.time_seconds || 30, { type: 'number', min: 5, max: 300, required: true }),
       field('higher_order', 'سؤال تفكير عالٍ', record ? record.higher_order : false, { type: 'checkbox' }),
+      field('التحدي', 'مؤهل للاستخدام في التحديات', record ? record['التحدي'] : false, { type: 'checkbox' }),
       field('active', 'السؤال مفعّل', record ? record.active : true, { type: 'checkbox' }),
       `<label class="field full">ملاحظات<textarea name="notes">${escapeHtml(record?.notes || '')}</textarea></label>`
     ].join('');
@@ -1556,6 +1743,7 @@ recordForm.addEventListener('submit', async (event) => {
   }
   if (state.editingType === 'question') {
     values.higher_order = Boolean(recordForm.elements.higher_order?.checked);
+    values['التحدي'] = Boolean(recordForm.elements['التحدي']?.checked);
     ['difficulty', 'points', 'time_seconds'].forEach((key) => { values[key] = Number(values[key]); });
     if (values.question_type === 'multiple_choice' && (!values.option_1 || !values.option_2)) {
       formMessage.textContent = 'أدخل خيارين على الأقل لسؤال الاختيار من متعدد.';
@@ -1587,6 +1775,52 @@ recordForm.addEventListener('submit', async (event) => {
       formMessage.textContent = 'أقل صعوبة يجب ألا تتجاوز أعلى صعوبة.';
       return;
     }
+  }
+  if (state.editingType === 'challenge') {
+    const lessonIds = Array.from(recordForm.querySelectorAll('input[name="challenge_lesson_ids"]:checked')).map((input) => input.value);
+    if (!lessonIds.length) {
+      formMessage.textContent = 'اختر درسًا واحدًا على الأقل للتحدي.';
+      return;
+    }
+    ['card_count','min_difficulty','max_difficulty','question_time_seconds','sort_order'].forEach((key) => { values[key] = Number(values[key]); });
+    const layoutRows = parseLevelLayout(values.row_layout);
+    if (!layoutRows || layoutRows.reduce((sum, value) => sum + value, 0) !== values.card_count) {
+      formMessage.textContent = `مجموع توزيع الصفوف يجب أن يساوي ${values.card_count} بطاقة.`;
+      return;
+    }
+    if (values.card_count % 2 !== 0) {
+      formMessage.textContent = 'عدد بطاقات التحدي يجب أن يكون زوجيًا.';
+      return;
+    }
+    if (values.min_difficulty > values.max_difficulty) {
+      formMessage.textContent = 'أقل صعوبة يجب ألا تتجاوز أعلى صعوبة.';
+      return;
+    }
+    values.row_layout = layoutRows.join('-');
+    values.locked_message = String(values.locked_message || 'قريبًا').trim() || 'قريبًا';
+    values.access_code = String(values.access_code || '').trim();
+    if (values.challenge_status === 'code' && !values.access_code) {
+      formMessage.textContent = 'أدخل كود الدخول للتحدي.';
+      return;
+    }
+    const record = { ...(state.editingRecord || {}), ...values };
+    const saveButton = $('#saveRecordButton');
+    setBusy(saveButton, true, 'جارٍ الحفظ…');
+    try {
+      await api('teacher_save_challenge', { data: {
+        challenge: record,
+        lesson_ids: lessonIds,
+        challenge_status_explicit: true
+      }});
+      recordDialog.close();
+      await Promise.all([loadChallenges(), loadAppearanceData()]);
+      showToast('تم حفظ التحدي بنجاح.');
+    } catch (error) {
+      formMessage.textContent = error.message;
+    } finally {
+      setBusy(saveButton, false, '');
+    }
+    return;
   }
   if (state.editingType === 'card') {
     values.copies_per_pair = Number(values.copies_per_pair);
@@ -1626,6 +1860,7 @@ recordForm.addEventListener('submit', async (event) => {
     if (sheet === 'levels') await loadLevels();
     if (sheet === 'cards') await loadCards();
     if (sheet === 'questions') await loadQuestions();
+    if (sheet === 'challenges') await loadChallenges();
     showToast('تم الحفظ بنجاح.');
   } catch (error) {
     formMessage.textContent = error.message;
@@ -1642,6 +1877,7 @@ async function archiveRecord(sheet, id, label) {
     if (sheet === 'levels') await loadLevels();
     if (sheet === 'cards') await loadCards();
     if (sheet === 'questions') await loadQuestions();
+    if (sheet === 'challenges') await loadChallenges();
     showToast(`تم تعطيل ${label} مع الاحتفاظ ببياناته.`);
   } catch (error) {
     showToast(error.message);
@@ -1677,7 +1913,8 @@ async function toggleEntityActive(sheet, id, button) {
   const configs = {
     lessons: { rows: state.lessons, idField: 'lesson_id', label: 'الدرس', render: renderLessons },
     cards: { rows: state.cards, idField: 'card_id', label: 'البطاقة', render: renderCards },
-    questions: { rows: state.questions, idField: 'question_id', label: 'السؤال', render: renderQuestions }
+    questions: { rows: state.questions, idField: 'question_id', label: 'السؤال', render: renderQuestions },
+    challenges: { rows: state.challenges, idField: 'challenge_id', label: 'التحدي', render: renderChallenges }
   };
   const config = configs[sheet];
   const record = config?.rows.find((row) => String(row[config.idField]) === String(id));
