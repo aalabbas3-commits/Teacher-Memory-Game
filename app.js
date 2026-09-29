@@ -728,13 +728,46 @@ function normalizeSchoolName(value) {
     .trim();
 }
 
+function resultFilterSourceRows() {
+  if (state.resultsView === 'log') {
+    return state.studentSessions.map((session) => {
+      const result = sessionResult(session);
+      return { ...session, lesson_id: session.lesson_id || result?.lesson_id || '', student_name: session.student_name || result?.student_name || '', class_name: session.class_name || result?.class_name || '', school_name: session.school_name || result?.school_name || '' };
+    });
+  }
+  return completedLessonResults();
+}
+
+function updateResultStudentFilter() {
+  const filter = $('#resultStudentFilter');
+  if (!filter) return;
+  const selected = filter.value;
+  const lessonId = $('#resultLessonFilter').value;
+  const schoolKey = $('#resultSchoolFilter')?.value || '';
+  const classKey = $('#resultClassFilter').value;
+  const students = new Map();
+  resultFilterSourceRows()
+    .filter((r) => !lessonId || String(r.lesson_id) === String(lessonId))
+    .filter((r) => !schoolKey || normalizeSchoolName(r.school_name) === schoolKey)
+    .filter((r) => !classKey || normalizeClassName(r.class_name) === classKey)
+    .forEach((r) => {
+      const name = String(r.student_name || '').trim();
+      if (!name) return;
+      const key = normalizeArabicText(name);
+      if (!students.has(key)) students.set(key, name);
+    });
+  const rows = [...students.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar'));
+  filter.innerHTML = '<option value="">كل الطلاب</option>' + rows.map(([key,label])=>`<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
+  filter.value = rows.some(([key])=>key===selected) ? selected : '';
+}
+
 function updateResultSchoolFilter() {
   const lessonId = $('#resultLessonFilter').value;
   const filter = $('#resultSchoolFilter');
   const selected = filter.value;
   const groups = new Map();
 
-  state.results
+  resultFilterSourceRows()
     .filter((result) => !lessonId || String(result.lesson_id) === String(lessonId))
     .forEach((result) => {
       const original = String(result.school_name || '').trim();
@@ -756,7 +789,7 @@ function updateResultClassFilter() {
   const selected = filter.value;
   const groups = new Map();
 
-  state.results
+  resultFilterSourceRows()
     .filter((result) => !lessonId || String(result.lesson_id) === String(lessonId))
     .filter((result) => !schoolKey || normalizeSchoolName(result.school_name) === schoolKey)
     .forEach((result) => {
@@ -813,14 +846,14 @@ function resultMatchesFilters(result, includeStatus = true) {
   const classKey = $('#resultClassFilter').value;
   const roundStatus = $('#resultStatusFilter')?.value || '';
   const date = $('#resultDateFilter').value;
-  const search = $('#resultSearch').value.trim().toLowerCase();
+  const studentKey = $('#resultStudentFilter')?.value || '';
   if (lessonId && String(result.lesson_id) !== String(lessonId)) return false;
   if (schoolKey && normalizeSchoolName(result.school_name) !== schoolKey) return false;
   if (classKey && normalizeClassName(result.class_name) !== classKey) return false;
   if (includeStatus && roundStatus === 'completed' && !activeValue(result.completed)) return false;
   if (includeStatus && roundStatus === 'incomplete' && activeValue(result.completed)) return false;
   if (date && resultDateKey(result.played_at || result.started_at) !== date) return false;
-  if (search && !String(result.student_name || '').toLowerCase().includes(search)) return false;
+  if (studentKey && normalizeArabicText(result.student_name) !== studentKey) return false;
   return true;
 }
 
@@ -1198,14 +1231,14 @@ $('#questionDifficultyFilter').addEventListener('change', renderQuestions);
 $('#questionCognitiveFilter').addEventListener('change', renderQuestions);
 $('#questionSearch').addEventListener('input', renderQuestions);
 $('#questionUsageButton').addEventListener('click', showQuestionUsageDialog);
-$('#resultLessonFilter').addEventListener('change', () => { updateResultSchoolFilter(); updateResultClassFilter(); renderResults(); });
-$('#resultSchoolFilter').addEventListener('change', () => { updateResultClassFilter(); renderResults(); });
-$('#resultClassFilter').addEventListener('change', renderResults);
+$('#resultLessonFilter').addEventListener('change', () => { updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#resultSchoolFilter').addEventListener('change', () => { updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#resultClassFilter').addEventListener('change', () => { updateResultStudentFilter(); renderResults(); });
 $('#resultStatusFilter').addEventListener('change', renderResults);
-$('#completedResultsTab').addEventListener('click', () => { state.resultsView = 'best'; renderResults(); });
-$('#roundLogTab').addEventListener('click', () => { state.resultsView = 'log'; renderResults(); });
+$('#completedResultsTab').addEventListener('click', () => { state.resultsView = 'best'; updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
+$('#roundLogTab').addEventListener('click', () => { state.resultsView = 'log'; updateResultSchoolFilter(); updateResultClassFilter(); updateResultStudentFilter(); renderResults(); });
 $('#resultDateFilter').addEventListener('change', renderResults);
-$('#resultSearch').addEventListener('input', renderResults);
+$('#resultStudentFilter').addEventListener('change', renderResults);
 $('#refreshResultsButton').addEventListener('click', loadResults);
 $('#exportResultsButton').addEventListener('click', exportResults);
 $('#exportErrorsButton').addEventListener('click', exportErrors);

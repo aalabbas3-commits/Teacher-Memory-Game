@@ -237,7 +237,7 @@
           <label>الفصل<select id="resultClassFilter"><option value="">كل الفصول</option></select></label>
           <label id="resultStatusFilterWrap">حالة الجولة<select id="resultStatusFilter"><option value="">كل الحالات</option><option value="completed">مكتملة</option><option value="incomplete">غير مكتملة</option></select></label>
           <label>التاريخ<input id="resultDateFilter" type="date"></label>
-          <label class="search-field">اسم الطالب<input id="resultSearch" type="search" placeholder="ابحث باسم الطالب…"></label>
+          <label>اسم الطالب<select id="resultStudentFilter"><option value="">كل الطلاب</option></select></label>
         </div>
         <div id="resultSummary" class="summary-grid" aria-label="ملخص النتائج"></div>
         <div id="resultsStatus" class="inline-status" aria-live="polite"></div>
@@ -260,10 +260,6 @@
             <button id="exportNotesButton" class="secondary-button compact" type="button">تصدير الملاحظات</button>
             <button id="refreshNotesButton" class="secondary-button compact" type="button">تحديث الملاحظات</button>
           </div>
-        </div>
-        <div class="results-view-tabs" role="tablist" aria-label="عرض النتائج">
-          <button id="completedResultsTab" class="results-view-tab active" type="button" data-results-view="best">النتائج</button>
-          <button id="roundLogTab" class="results-view-tab" type="button" data-results-view="log">سجل الدخول والجولات</button>
         </div>
         <div class="result-filters">
           <label>الدرس<select id="noteLessonFilter"></select></label>
