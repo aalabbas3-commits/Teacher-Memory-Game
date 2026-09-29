@@ -907,7 +907,6 @@ function renderResults() {
   $('#deleteSelectedResultsButton').hidden = false;
   $('#deleteAllResultsButton').hidden = false;
   $('#exportErrorsButton').hidden = false;
-  $('#selectAllResults').closest('th').hidden = isLog;
 
   if (!isLog) {
     const avg = rows.length ? Math.round(rows.reduce((s,r)=>s+Number(r.score||0),0)/rows.length) : 0;
