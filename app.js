@@ -19,6 +19,7 @@ const state = {
   answerLogs: [],
   notes: [],
   selectedResultIds: new Set(),
+  resultsView: 'best',
   activeTab: 'lessons',
   editingType: '',
   editingRecord: null
@@ -806,64 +807,97 @@ function resultStageLabel(result) {
   return levelName(result?.level_id);
 }
 
-function filteredResults() {
+function resultMatchesFilters(result, includeStatus = true) {
   const lessonId = $('#resultLessonFilter').value;
   const schoolKey = $('#resultSchoolFilter')?.value || '';
   const classKey = $('#resultClassFilter').value;
   const roundStatus = $('#resultStatusFilter')?.value || '';
   const date = $('#resultDateFilter').value;
   const search = $('#resultSearch').value.trim().toLowerCase();
-
-  return state.results.filter((result) => {
-    if (lessonId && String(result.lesson_id) !== String(lessonId)) return false;
-    if (schoolKey && normalizeSchoolName(result.school_name) !== schoolKey) return false;
-    if (classKey && normalizeClassName(result.class_name) !== classKey) return false;
-    if (roundStatus === 'completed' && !activeValue(result.completed)) return false;
-    if (roundStatus === 'incomplete' && activeValue(result.completed)) return false;
-    if (date && resultDateKey(result.played_at) !== date) return false;
-    if (search && !String(result.student_name || '').toLowerCase().includes(search)) return false;
-    return true;
-  }).sort((a, b) => new Date(b.played_at || 0) - new Date(a.played_at || 0));
+  if (lessonId && String(result.lesson_id) !== String(lessonId)) return false;
+  if (schoolKey && normalizeSchoolName(result.school_name) !== schoolKey) return false;
+  if (classKey && normalizeClassName(result.class_name) !== classKey) return false;
+  if (includeStatus && roundStatus === 'completed' && !activeValue(result.completed)) return false;
+  if (includeStatus && roundStatus === 'incomplete' && activeValue(result.completed)) return false;
+  if (date && resultDateKey(result.played_at || result.started_at) !== date) return false;
+  if (search && !String(result.student_name || '').toLowerCase().includes(search)) return false;
+  return true;
 }
 
-function sessionForResult(r){return state.studentSessions.find(x=>String(x.session_id)===String(r.session_id));}
-function deviceRoundCount(r){const d=String(sessionForResult(r)?.device_id||'').trim();if(!d)return 0;return new Set(state.studentSessions.filter(x=>String(x.device_id||'').trim()===d).map(x=>String(x.session_id||'')).filter(Boolean)).size;}
-function deviceRoundLabel(r){const n=deviceRoundCount(r);return !n?'—':n===1?'جولة واحدة':`${n} جولات`;}
+function studentLessonKey(result) {
+  return [normalizeArabicText(result.student_name), normalizeClassName(result.class_name), normalizeSchoolName(result.school_name), String(result.lesson_id || '')].join('|');
+}
+
+function completedLessonResults() {
+  return state.results.filter((result) => String(result.level_id) === 'LESSON_TOTAL' && activeValue(result.completed));
+}
+
+function bestCompletedResults() {
+  const groups = new Map();
+  completedLessonResults().filter((r) => resultMatchesFilters(r, false)).forEach((r) => {
+    const key = studentLessonKey(r);
+    const current = groups.get(key);
+    const score = Number(r.score || 0), currentScore = Number(current?.score || 0);
+    if (!current || score > currentScore || (score === currentScore && new Date(r.played_at || 0) > new Date(current.played_at || 0))) groups.set(key, r);
+  });
+  return [...groups.values()].sort((a,b) => Number(b.score||0)-Number(a.score||0) || new Date(b.played_at||0)-new Date(a.played_at||0));
+}
+
+function completedAttemptCount(result) {
+  const key = studentLessonKey(result);
+  return completedLessonResults().filter((r) => studentLessonKey(r) === key).length;
+}
+
+function sessionResult(session) {
+  return state.results.find((r) => String(r.session_id) === String(session.session_id) && String(r.level_id) === 'LESSON_TOTAL') ||
+    state.results.find((r) => String(r.session_id) === String(session.session_id));
+}
+
+function sessionLogRows() {
+  return state.studentSessions.map((session) => {
+    const result = sessionResult(session);
+    return { ...session, result_id: result?.result_id || '', score: result?.score ?? '', correct_answers: result?.correct_answers ?? 0, wrong_answers: result?.wrong_answers ?? 0, completed: result ? activeValue(result.completed) : String(session.status||'').toLowerCase()==='completed', played_at: result?.played_at || session.started_at };
+  }).filter((r) => resultMatchesFilters(r, true)).sort((a,b) => new Date(b.started_at||b.played_at||0)-new Date(a.started_at||a.played_at||0));
+}
+
+function filteredResults() {
+  return state.resultsView === 'log' ? sessionLogRows() : bestCompletedResults();
+}
+
+function lessonNameById(id) {
+  return state.lessons.find((l) => String(l.lesson_id) === String(id))?.lesson_name || id || '—';
+}
 
 function renderResults() {
+  const isLog = state.resultsView === 'log';
   const rows = filteredResults();
   const existingIds = new Set(state.results.map((result) => String(result.result_id)));
   state.selectedResultIds = new Set([...state.selectedResultIds].filter((id) => existingIds.has(id)));
-  const uniqueStudents = new Set(rows.map((result) => `${result.student_name}|${result.class_name}`)).size;
-  const averageScore = rows.length ? Math.round(rows.reduce((sum, result) => sum + Number(result.score || 0), 0) / rows.length) : 0;
-  const totalWrong = rows.reduce((sum, result) => sum + Number(result.wrong_answers || 0), 0);
-  $('#resultSummary').innerHTML = [
-    ['المحاولات', rows.length],
-    ['الطلاب', uniqueStudents],
-    ['متوسط الدرجة', averageScore],
-    ['الإجابات الخاطئة', totalWrong]
-  ].map(([label, value]) => `<div class="summary-card"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
-  $('#resultsStatus').textContent = `${rows.length} من ${state.results.length} نتيجة`;
+  $('#completedResultsTab').classList.toggle('active', !isLog);
+  $('#roundLogTab').classList.toggle('active', isLog);
+  $('#resultStatusFilterWrap').hidden = !isLog;
+  $('#deleteSelectedResultsButton').hidden = isLog;
+  $('#deleteAllResultsButton').hidden = isLog;
+  $('#exportErrorsButton').hidden = isLog;
+  $('#selectAllResults').closest('th').hidden = isLog;
+
+  if (!isLog) {
+    const avg = rows.length ? Math.round(rows.reduce((s,r)=>s+Number(r.score||0),0)/rows.length) : 0;
+    const attempts = rows.reduce((s,r)=>s+completedAttemptCount(r),0);
+    $('#resultSummary').innerHTML = [['الطلاب',rows.length],['المحاولات المكتملة',attempts],['متوسط أفضل نتيجة',avg],['الدروس',new Set(rows.map(r=>r.lesson_id)).size]].map(([l,v])=>`<div class="summary-card"><span>${l}</span><strong>${escapeHtml(v)}</strong></div>`).join('');
+    $('#resultsStatus').textContent = `${rows.length} طالب/درس بأفضل نتيجة مكتملة`;
+    $('#resultsTableHead').innerHTML = '<tr><th class="select-column"><input id="selectAllResults" class="result-checkbox" type="checkbox" aria-label="تحديد جميع النتائج الظاهرة"></th><th>الطالب</th><th>الفصل</th><th>الدرس</th><th>أفضل درجة</th><th>صحيح</th><th>خطأ</th><th>النجوم</th><th>المدة</th><th>تاريخ أفضل نتيجة</th><th>المحاولات المكتملة</th><th>التفاصيل</th></tr>';
+    $('#resultsTable').innerHTML = rows.map((r)=>{const stars=Math.max(0,Math.min(5,Number(r.stars||0)));return `<tr><td class="select-column"><input class="result-checkbox" type="checkbox" data-select-result="${escapeHtml(r.result_id)}" ${state.selectedResultIds.has(String(r.result_id))?'checked':''}></td><td><strong>${escapeHtml(r.student_name||'—')}</strong></td><td>${escapeHtml(r.class_name||'—')}</td><td>${escapeHtml(lessonNameById(r.lesson_id))}</td><td><strong>${escapeHtml(r.score??'—')}</strong></td><td>${escapeHtml(r.correct_answers??0)}</td><td>${escapeHtml(r.wrong_answers??0)}</td><td>${'★'.repeat(stars)||'—'}</td><td>${escapeHtml(formatDuration(r.duration_seconds))}</td><td>${escapeHtml(formatResultDate(r.played_at))}</td><td><strong>${completedAttemptCount(r)}</strong></td><td><button class="row-button" type="button" data-view-result-errors="${escapeHtml(r.result_id)}">عرض التفاصيل</button></td></tr>`}).join('');
+  } else {
+    const completed=rows.filter(r=>activeValue(r.completed)).length, incomplete=rows.length-completed;
+    const students=new Set(rows.map(r=>[normalizeArabicText(r.student_name),normalizeClassName(r.class_name),normalizeSchoolName(r.school_name)].join('|'))).size;
+    $('#resultSummary').innerHTML = [['مرات الدخول',rows.length],['الطلاب',students],['جولات مكتملة',completed],['جولات غير مكتملة',incomplete]].map(([l,v])=>`<div class="summary-card"><span>${l}</span><strong>${escapeHtml(v)}</strong></div>`).join('');
+    $('#resultsStatus').textContent = `${rows.length} جولة في سجل الدخول`;
+    $('#resultsTableHead').innerHTML = '<tr><th>الطالب</th><th>الفصل</th><th>المدرسة</th><th>الدرس</th><th>الحالة</th><th>الدرجة</th><th>بدأت</th><th>آخر حالة</th><th>التفاصيل</th></tr>';
+    $('#resultsTable').innerHTML = rows.map((r)=>`<tr><td><strong>${escapeHtml(r.student_name||'—')}</strong></td><td>${escapeHtml(r.class_name||'—')}</td><td>${escapeHtml(r.school_name||'—')}</td><td>${escapeHtml(lessonNameById(r.lesson_id))}</td><td><span class="status-pill ${activeValue(r.completed)?'is-active':'is-inactive'}">${activeValue(r.completed)?'مكتملة':'غير مكتملة'}</span></td><td>${escapeHtml(r.score===''?'—':r.score)}</td><td>${escapeHtml(formatResultDate(r.started_at||r.played_at))}</td><td>${escapeHtml(r.status|| (activeValue(r.completed)?'completed':'incomplete'))}</td><td>${r.result_id?`<button class="row-button" type="button" data-view-result-errors="${escapeHtml(r.result_id)}">عرض التفاصيل</button>`:'—'}</td></tr>`).join('');
+  }
   $('#resultsEmpty').hidden = rows.length > 0;
-  $('#resultsTable').innerHTML = rows.map((result) => {
-    const wrong = Number(result.wrong_answers || 0);
-    const stars = Math.max(0, Math.min(5, Number(result.stars || 0)));
-    return `<tr>
-      <td class="select-column"><input class="result-checkbox" type="checkbox" data-select-result="${escapeHtml(result.result_id)}" aria-label="تحديد نتيجة ${escapeHtml(result.student_name || '')}" ${state.selectedResultIds.has(String(result.result_id)) ? 'checked' : ''}></td>
-      <td><strong>${escapeHtml(result.student_name || '—')}</strong><br><small>${escapeHtml(result.result_id)}</small></td>
-      <td>${escapeHtml(result.class_name || '—')}</td>
-      <td>${escapeHtml(resultStageLabel(result))}</td>
-      <td><strong>${escapeHtml(result.score ?? '—')}</strong></td>
-      <td>${escapeHtml(result.correct_answers ?? 0)}</td>
-      <td>${escapeHtml(wrong)}</td>
-      <td aria-label="${stars} نجوم">${'★'.repeat(stars) || '—'}</td>
-      <td>${escapeHtml(formatDuration(result.duration_seconds))}</td>
-      <td>${escapeHtml(formatResultDate(result.played_at))}</td>
-      <td><span class="device-round-badge${deviceRoundCount(result)>1?' repeated':''}" title="عدد الجولات المسجلة من نفس الجهاز">${escapeHtml(deviceRoundLabel(result))}</span></td>
-      <td><button class="row-button" type="button" data-view-result-errors="${escapeHtml(result.result_id)}">عرض التفاصيل</button></td>
-    </tr>`;
-  }).join('');
-  updateResultSelectionUi(rows);
+  if (!isLog) updateResultSelectionUi(rows); else { $('#deleteSelectedResultsButton').disabled=true; }
 }
 
 function updateResultSelectionUi(visibleRows = filteredResults()) {
@@ -1168,6 +1202,8 @@ $('#resultLessonFilter').addEventListener('change', () => { updateResultSchoolFi
 $('#resultSchoolFilter').addEventListener('change', () => { updateResultClassFilter(); renderResults(); });
 $('#resultClassFilter').addEventListener('change', renderResults);
 $('#resultStatusFilter').addEventListener('change', renderResults);
+$('#completedResultsTab').addEventListener('click', () => { state.resultsView = 'best'; renderResults(); });
+$('#roundLogTab').addEventListener('click', () => { state.resultsView = 'log'; renderResults(); });
 $('#resultDateFilter').addEventListener('change', renderResults);
 $('#resultSearch').addEventListener('input', renderResults);
 $('#refreshResultsButton').addEventListener('click', loadResults);
@@ -1175,14 +1211,7 @@ $('#exportResultsButton').addEventListener('click', exportResults);
 $('#exportErrorsButton').addEventListener('click', exportErrors);
 $('#deleteSelectedResultsButton').addEventListener('click', deleteSelectedResults);
 $('#deleteAllResultsButton').addEventListener('click', deleteAllResults);
-$('#selectAllResults').addEventListener('change', (event) => {
-  filteredResults().forEach((result) => {
-    const id = String(result.result_id);
-    if (event.currentTarget.checked) state.selectedResultIds.add(id);
-    else state.selectedResultIds.delete(id);
-  });
-  renderResults();
-});
+
 $('#noteLessonFilter').addEventListener('change', () => { updateNoteClassFilter(); renderNotes(); });
 $('#noteClassFilter').addEventListener('change', renderNotes);
 $('#noteTypeFilter').addEventListener('change', renderNotes);
@@ -1228,6 +1257,7 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('change', (event) => {
+  if (event.target.id === 'selectAllResults') { bestCompletedResults().forEach((result) => { const id=String(result.result_id); if(event.target.checked) state.selectedResultIds.add(id); else state.selectedResultIds.delete(id); }); renderResults(); return; }
   const checkbox = event.target.closest('[data-select-result]');
   if (!checkbox) return;
   const id = String(checkbox.dataset.selectResult);

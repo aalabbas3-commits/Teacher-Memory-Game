@@ -217,7 +217,7 @@
         <div class="panel-heading">
           <div>
             <h2 id="resultsHeading">نتائج الطلاب</h2>
-            <p>عرض المحاولات والدرجات والأسئلة الخاطئة، مع إمكانية حذف النتائج المحددة.</p>
+            <p>أفضل نتيجة مكتملة لكل طالب، مع سجل مستقل للدخول والجولات.</p>
           </div>
           <div class="heading-actions">
             <button id="deleteAllResultsButton" class="danger-button compact danger-outline" type="button">حذف جميع النتائج</button>
@@ -227,11 +227,15 @@
             <button id="refreshResultsButton" class="secondary-button compact" type="button">تحديث النتائج</button>
           </div>
         </div>
+        <div class="results-view-tabs" role="tablist" aria-label="عرض النتائج">
+          <button id="completedResultsTab" class="results-view-tab active" type="button" data-results-view="best">النتائج</button>
+          <button id="roundLogTab" class="results-view-tab" type="button" data-results-view="log">سجل الدخول والجولات</button>
+        </div>
         <div class="result-filters">
           <label>الدرس<select id="resultLessonFilter"><option value="">كل الدروس</option></select></label>
           <label>المدرسة<select id="resultSchoolFilter"><option value="">كل المدارس</option></select></label>
           <label>الفصل<select id="resultClassFilter"><option value="">كل الفصول</option></select></label>
-          <label>حالة الجولة<select id="resultStatusFilter"><option value="">كل الحالات</option><option value="completed">مكتملة</option><option value="incomplete">غير مكتملة</option></select></label>
+          <label id="resultStatusFilterWrap">حالة الجولة<select id="resultStatusFilter"><option value="">كل الحالات</option><option value="completed">مكتملة</option><option value="incomplete">غير مكتملة</option></select></label>
           <label>التاريخ<input id="resultDateFilter" type="date"></label>
           <label class="search-field">اسم الطالب<input id="resultSearch" type="search" placeholder="ابحث باسم الطالب…"></label>
         </div>
@@ -239,7 +243,7 @@
         <div id="resultsStatus" class="inline-status" aria-live="polite"></div>
         <div class="table-shell">
           <table class="results-table">
-            <thead><tr><th class="select-column"><input id="selectAllResults" class="result-checkbox" type="checkbox" aria-label="تحديد جميع النتائج الظاهرة"></th><th>الطالب</th><th>الفصل</th><th>المستوى</th><th>الدرجة</th><th>صحيح</th><th>خطأ</th><th>النجوم</th><th>المدة</th><th>التاريخ</th><th>الجهاز</th><th>التفاصيل</th></tr></thead>
+            <thead id="resultsTableHead"><tr><th class="select-column"><input id="selectAllResults" class="result-checkbox" type="checkbox" aria-label="تحديد جميع النتائج الظاهرة"></th><th>الطالب</th><th>الفصل</th><th>الدرس</th><th>أفضل درجة</th><th>صحيح</th><th>خطأ</th><th>النجوم</th><th>المدة</th><th>تاريخ أفضل نتيجة</th><th>المحاولات المكتملة</th><th>التفاصيل</th></tr></thead>
             <tbody id="resultsTable"></tbody>
           </table>
         </div>
@@ -256,6 +260,10 @@
             <button id="exportNotesButton" class="secondary-button compact" type="button">تصدير الملاحظات</button>
             <button id="refreshNotesButton" class="secondary-button compact" type="button">تحديث الملاحظات</button>
           </div>
+        </div>
+        <div class="results-view-tabs" role="tablist" aria-label="عرض النتائج">
+          <button id="completedResultsTab" class="results-view-tab active" type="button" data-results-view="best">النتائج</button>
+          <button id="roundLogTab" class="results-view-tab" type="button" data-results-view="log">سجل الدخول والجولات</button>
         </div>
         <div class="result-filters">
           <label>الدرس<select id="noteLessonFilter"></select></label>
