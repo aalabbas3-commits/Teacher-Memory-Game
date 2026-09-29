@@ -300,3 +300,5 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 /* حالات إتاحة الدروس */
 #lockedMessageField[hidden],
 #accessCodeField[hidden] { display: none !important; }
+
+.device-round-badge{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:5px 9px;border-radius:999px;background:#eef4f1;color:#486058;font-weight:800;font-size:.82rem}.device-round-badge.repeated{background:#fff2cc;color:#785b00}

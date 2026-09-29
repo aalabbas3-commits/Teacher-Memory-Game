@@ -15,6 +15,7 @@ const state = {
   results: [],
   levelResults: [],
   teamResults: [],
+  studentSessions: [],
   answerLogs: [],
   notes: [],
   selectedResultIds: new Set(),
@@ -654,16 +655,18 @@ async function loadResults() {
   status.textContent = 'جارٍ تحميل النتائج…';
   setBusy(button, true, 'جارٍ التحديث…');
   try {
-    const [resultsData, answersData, levelResultsData, teamResultsData] = await Promise.all([
+    const [resultsData, answersData, levelResultsData, teamResultsData, sessionsData] = await Promise.all([
       api('teacher_list', { params: { sheet: 'results', limit: 2000 } }),
       api('teacher_list', { params: { sheet: 'answer_log', limit: 2000 } }),
       api('teacher_list', { params: { sheet: 'level_results', limit: 2000 } }).catch(() => ({ rows: [] })),
-      api('teacher_list', { params: { sheet: 'team_results', limit: 2000 } }).catch(() => ({ rows: [] }))
+      api('teacher_list', { params: { sheet: 'team_results', limit: 2000 } }).catch(() => ({ rows: [] })),
+      api('teacher_list', { params: { sheet: 'student_sessions', limit: 2000 } }).catch(() => ({ rows: [] }))
     ]);
     state.results = resultsData.rows || [];
     state.answerLogs = answersData.rows || [];
     state.levelResults = levelResultsData.rows || [];
     state.teamResults = teamResultsData.rows || [];
+    state.studentSessions = sessionsData.rows || [];
     updateResultSchoolFilter();
     updateResultClassFilter();
     if ($('#questionUsageDialog')?.open) renderQuestionUsageStats();
@@ -823,6 +826,10 @@ function filteredResults() {
   }).sort((a, b) => new Date(b.played_at || 0) - new Date(a.played_at || 0));
 }
 
+function sessionForResult(r){return state.studentSessions.find(x=>String(x.session_id)===String(r.session_id));}
+function deviceRoundCount(r){const d=String(sessionForResult(r)?.device_id||'').trim();if(!d)return 0;return new Set(state.studentSessions.filter(x=>String(x.device_id||'').trim()===d).map(x=>String(x.session_id||'')).filter(Boolean)).size;}
+function deviceRoundLabel(r){const n=deviceRoundCount(r);return !n?'—':n===1?'جولة واحدة':`${n} جولات`;}
+
 function renderResults() {
   const rows = filteredResults();
   const existingIds = new Set(state.results.map((result) => String(result.result_id)));
@@ -852,6 +859,7 @@ function renderResults() {
       <td aria-label="${stars} نجوم">${'★'.repeat(stars) || '—'}</td>
       <td>${escapeHtml(formatDuration(result.duration_seconds))}</td>
       <td>${escapeHtml(formatResultDate(result.played_at))}</td>
+      <td><span class="device-round-badge${deviceRoundCount(result)>1?' repeated':''}" title="عدد الجولات المسجلة من نفس الجهاز">${escapeHtml(deviceRoundLabel(result))}</span></td>
       <td><button class="row-button" type="button" data-view-result-errors="${escapeHtml(result.result_id)}">عرض التفاصيل</button></td>
     </tr>`;
   }).join('');
