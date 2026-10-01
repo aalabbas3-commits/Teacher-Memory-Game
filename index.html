@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5138">
   <title>لوحة معلم لعبة النباتات</title>
   <meta name="description" content="إدارة دروس ومستويات لعبة النباتات التعليمية">
-  <link rel="stylesheet" href="styles.css?v=1.0.6">
+  <link rel="stylesheet" href="styles.css?v=1.0.7">
 </head>
 <body>
 
@@ -245,6 +245,29 @@
           </table>
         </div>
         <div id="challengesEmpty" class="empty-state" hidden>لا توجد تحديات بعد.</div>
+
+        <section class="challenge-cards-manager" aria-labelledby="challengeCardsHeading">
+          <div class="panel-heading compact-heading">
+            <div>
+              <h3 id="challengeCardsHeading">بطاقات التحدي المستقلة</h3>
+              <p>لكل تحدٍ بطاقاته الخاصة، ولا تُسحب بطاقات الدروس تلقائيًا.</p>
+            </div>
+            <button id="addChallengeCardButton" class="primary-button compact" type="button">+ إضافة بطاقة تحدي</button>
+          </div>
+          <div class="challenge-card-toolbar">
+            <label>التحدي
+              <select id="challengeCardFilter"></select>
+            </label>
+            <span id="challengeCardsStatus" class="inline-status" aria-live="polite"></span>
+          </div>
+          <div class="table-shell">
+            <table class="challenges-table">
+              <thead><tr><th>الصورة</th><th>البطاقة</th><th>التحدي</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
+              <tbody id="challengeCardsTable"></tbody>
+            </table>
+          </div>
+          <div id="challengeCardsEmpty" class="empty-state" hidden>لا توجد بطاقات لهذا التحدي بعد.</div>
+        </section>
       </section>
 
       <section id="resultsPanel" class="panel" aria-labelledby="resultsHeading" hidden>
@@ -374,6 +397,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="app.js?v=1.0.6" defer></script>
+  <script src="app.js?v=1.0.7" defer></script>
 </body>
 </html>

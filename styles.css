@@ -368,3 +368,13 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
   .challenge-section-actions button { width:100%; }
   .challenge-lesson-list { grid-template-columns:1fr; }
 }
+
+
+/* v1.0.7 — بطاقات التحدي المستقلة */
+.challenge-cards-manager{margin-top:28px;padding-top:22px;border-top:1px solid var(--line,#dfe8e4)}
+.compact-heading{margin-bottom:12px}
+.challenge-card-toolbar{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin:10px 0 14px}
+.challenge-card-toolbar label{display:grid;gap:6px;font-weight:700;min-width:240px}
+.challenge-card-toolbar select{min-height:42px;border:1px solid var(--line,#d7e1dd);border-radius:10px;padding:7px 10px;background:#fff}
+.challenge-checkbox-cell{text-align:center}
+.challenge-question-checkbox{width:20px;height:20px;cursor:pointer;accent-color:#176f55}
