@@ -378,3 +378,8 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
 .challenge-card-toolbar select{min-height:42px;border:1px solid var(--line,#d7e1dd);border-radius:10px;padding:7px 10px;background:#fff}
 .challenge-checkbox-cell{text-align:center}
 .challenge-question-checkbox{width:20px;height:20px;cursor:pointer;accent-color:#176f55}
+
+/* v1.0.7 - challenge section locked message */
+.challenge-section-actions{flex-wrap:wrap}
+.challenge-section-message-field{display:grid;gap:5px;min-width:min(320px,100%);font-size:.85rem;color:var(--muted,#667085)}
+.challenge-section-message-field input{width:100%;min-height:38px;border:1px solid #d7dde5;border-radius:10px;padding:8px 10px;background:#fff;color:inherit;font:inherit}

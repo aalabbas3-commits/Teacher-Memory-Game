@@ -690,6 +690,17 @@ function challengeSectionEnabled() {
   return row ? activeValue(row.active) && activeValue(row.setting_value) : false;
 }
 
+function challengeSectionLockedMessageSetting() {
+  return state.settings.find((row) =>
+    String(row.setting_id || '') === 'SETTING_GLOBAL_CHALLENGE_SECTION_LOCKED_MESSAGE' ||
+    (String(row.lesson_id || '') === 'GLOBAL' && String(row.setting_key || '') === 'challenge_section_locked_message')
+  );
+}
+
+function challengeSectionLockedMessage() {
+  return String(challengeSectionLockedMessageSetting()?.setting_value || 'قريبًا').trim() || 'قريبًا';
+}
+
 async function loadChallenges() {
   const status = $('#challengesStatus');
   if (status) status.textContent = 'جارٍ تحميل التحديات…';
@@ -790,6 +801,8 @@ function renderChallenges() {
   if (!tbody) return;
   const enabled = challengeSectionEnabled();
   $('#challengeSectionEnabled').checked = enabled;
+  const lockedMessageInput = $('#challengeSectionLockedMessage');
+  if (lockedMessageInput && document.activeElement !== lockedMessageInput) lockedMessageInput.value = challengeSectionLockedMessage();
   $('#challengeSectionState').textContent = enabled
     ? 'قسم التحديات مفعّل للطلاب. لا يظهر إلا التحديات غير المخفية.'
     : 'قسم التحديات مخفي بالكامل عن الطلاب حاليًا.';
@@ -824,13 +837,20 @@ async function saveChallengeSectionSetting() {
   }
   setBusy(button, true, 'جارٍ الحفظ…');
   try {
-    await api('teacher_save_challenge_section', { data: { enabled } });
+    const lockedMessage = String($('#challengeSectionLockedMessage')?.value || 'قريبًا').trim() || 'قريبًا';
+    await api('teacher_save_challenge_section', { data: { enabled, locked_message: lockedMessage } });
     let row = challengeSectionSetting();
     if (!row) {
       row = { setting_id:'SETTING_GLOBAL_CHALLENGE_SECTION_ENABLED', lesson_id:'GLOBAL', setting_key:'challenge_section_enabled', active:true };
       state.settings.push(row);
     }
     row.setting_value = enabled;
+    let messageRow = challengeSectionLockedMessageSetting();
+    if (!messageRow) {
+      messageRow = { setting_id:'SETTING_GLOBAL_CHALLENGE_SECTION_LOCKED_MESSAGE', lesson_id:'GLOBAL', setting_key:'challenge_section_locked_message', active:true };
+      state.settings.push(messageRow);
+    }
+    messageRow.setting_value = lockedMessage;
     renderChallenges();
     showToast(enabled ? 'تم تفعيل قسم التحديات.' : 'تم إخفاء قسم التحديات بالكامل.');
   } catch (error) {
@@ -938,10 +958,12 @@ async function loadResults() {
 function normalizeArabicText(value) {
   return String(value || '')
     .trim()
+    .replace(/[\u064B-\u065F\u0670]/g, '')
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ـ/g, '')
     .replace(/[٠-٩]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+    .replace(/[،,.;؛:()\[\]{}]+/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
