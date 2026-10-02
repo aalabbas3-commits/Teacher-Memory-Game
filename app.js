@@ -258,11 +258,14 @@ function lessonAccessBadge(lesson) {
 function renderLessons() {
   const tbody = $('#lessonsTable');
   $('#lessonsEmpty').hidden = state.lessons.length > 0;
-  tbody.innerHTML = state.lessons.map((lesson) => `
+  const rows = [...state.lessons].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.lesson_name || '').localeCompare(String(b.lesson_name || ''), 'ar'));
+  tbody.innerHTML = rows.map((lesson) => `
     <tr>
-      <td><strong>${escapeHtml(lesson.lesson_name)}</strong><br><small>${escapeHtml(lesson.lesson_id)}</small></td>
+      <td>${lesson.card_image_url ? `<img class="card-thumb lesson-cover-thumb" src="${escapeHtml(displayImageUrl(lesson.card_image_url))}" alt="${escapeHtml(lesson.lesson_name || 'صورة الدرس')}" loading="lazy">` : '<span class="card-thumb placeholder">بلا صورة</span>'}</td>
+      <td><strong>${escapeHtml(lesson.lesson_name)}</strong><br><small>${escapeHtml(lesson.lesson_id)}</small>${lesson.description ? `<br><small class="lesson-description-preview">${escapeHtml(lesson.description)}</small>` : ''}</td>
       <td>${escapeHtml(lesson.subject || '—')}</td>
       <td>${escapeHtml(lesson.grade || '—')}</td>
+      <td>${escapeHtml(lesson.sort_order || '—')}</td>
       <td>${visibilityBadge(lesson.group_mode_enabled)}</td>
       <td>${lessonAccessBadge(lesson)}</td>
       <td><div class="row-actions">
@@ -701,6 +704,28 @@ function challengeSectionLockedMessage() {
   return String(challengeSectionLockedMessageSetting()?.setting_value || 'قريبًا').trim() || 'قريبًا';
 }
 
+function challengeSectionCardImageSetting() {
+  return state.settings.find((row) =>
+    String(row.setting_id || '') === 'SETTING_GLOBAL_CHALLENGE_SECTION_CARD_IMAGE' ||
+    (String(row.lesson_id || '') === 'GLOBAL' && String(row.setting_key || '') === 'challenge_section_card_image_url')
+  );
+}
+
+function challengeSectionCardImageUrl() {
+  return String(challengeSectionCardImageSetting()?.setting_value || '').trim();
+}
+
+function renderChallengeSectionCardImagePreview() {
+  const preview = $('#challengeSectionCardImagePreview');
+  if (!preview) return;
+  const raw = String($('#challengeSectionCardImageUrl')?.value || challengeSectionCardImageUrl() || '').trim();
+  if (!raw) {
+    preview.innerHTML = '<span>لا توجد صورة رئيسية بعد</span>';
+    return;
+  }
+  preview.innerHTML = `<img src="${escapeHtml(displayImageUrl(raw))}" alt="معاينة صورة قسم التحدي" loading="lazy">`;
+}
+
 async function loadChallenges() {
   const status = $('#challengesStatus');
   if (status) status.textContent = 'جارٍ تحميل التحديات…';
@@ -803,6 +828,9 @@ function renderChallenges() {
   $('#challengeSectionEnabled').checked = enabled;
   const lockedMessageInput = $('#challengeSectionLockedMessage');
   if (lockedMessageInput && document.activeElement !== lockedMessageInput) lockedMessageInput.value = challengeSectionLockedMessage();
+  const sectionImageInput = $('#challengeSectionCardImageUrl');
+  if (sectionImageInput && document.activeElement !== sectionImageInput) sectionImageInput.value = challengeSectionCardImageUrl();
+  renderChallengeSectionCardImagePreview();
   $('#challengeSectionState').textContent = enabled
     ? 'قسم التحديات مفعّل للطلاب. لا يظهر إلا التحديات غير المخفية.'
     : 'قسم التحديات مخفي بالكامل عن الطلاب حاليًا.';
@@ -812,6 +840,7 @@ function renderChallenges() {
   tbody.innerHTML = rows.map((challenge) => {
     const lessons = challengeLessonNames(challenge.challenge_id);
     return `<tr>
+      <td>${challenge.card_image_url ? `<img class="card-thumb lesson-cover-thumb" src="${escapeHtml(displayImageUrl(challenge.card_image_url))}" alt="${escapeHtml(challenge.challenge_name || 'صورة التحدي')}" loading="lazy">` : '<span class="card-thumb placeholder">بلا صورة</span>'}</td>
       <td><strong>${escapeHtml(challenge.challenge_name || '—')}</strong><br><small>${escapeHtml(challenge.challenge_id || '')}</small></td>
       <td>${lessons.length ? lessons.map(escapeHtml).join('، ') : '<span class="muted">لا يوجد درس مرتبط</span>'}</td>
       <td>${escapeHtml(challenge.card_count || '—')}<br><small>متاح: ${challengeCardRows(challenge.challenge_id).filter((card) => activeValue(card.active)).length}</small></td>
@@ -838,7 +867,8 @@ async function saveChallengeSectionSetting() {
   setBusy(button, true, 'جارٍ الحفظ…');
   try {
     const lockedMessage = String($('#challengeSectionLockedMessage')?.value || 'قريبًا').trim() || 'قريبًا';
-    await api('teacher_save_challenge_section', { data: { enabled, locked_message: lockedMessage } });
+    const cardImageUrl = String($('#challengeSectionCardImageUrl')?.value || '').trim();
+    await api('teacher_save_challenge_section', { data: { enabled, locked_message: lockedMessage, card_image_url: cardImageUrl } });
     let row = challengeSectionSetting();
     if (!row) {
       row = { setting_id:'SETTING_GLOBAL_CHALLENGE_SECTION_ENABLED', lesson_id:'GLOBAL', setting_key:'challenge_section_enabled', active:true };
@@ -851,6 +881,12 @@ async function saveChallengeSectionSetting() {
       state.settings.push(messageRow);
     }
     messageRow.setting_value = lockedMessage;
+    let imageRow = challengeSectionCardImageSetting();
+    if (!imageRow) {
+      imageRow = { setting_id:'SETTING_GLOBAL_CHALLENGE_SECTION_CARD_IMAGE', lesson_id:'GLOBAL', setting_key:'challenge_section_card_image_url', active:true };
+      state.settings.push(imageRow);
+    }
+    imageRow.setting_value = cardImageUrl;
     renderChallenges();
     showToast(enabled ? 'تم تفعيل قسم التحديات.' : 'تم إخفاء قسم التحديات بالكامل.');
   } catch (error) {
@@ -892,6 +928,13 @@ function openChallengeEditor(record = null) {
     field('challenge_id', 'رمز التحدي', record?.challenge_id || '', { required: true }),
     field('challenge_name', 'اسم التحدي', record?.challenge_name || '', { required: true }),
     `<label class="field full">الوصف<textarea name="description">${escapeHtml(record?.description || '')}</textarea></label>`,
+    `<div class="image-field">
+      <label for="challengeCoverImageFile">صورة بطاقة التحدي من الجهاز</label>
+      <input id="challengeCoverImageFile" name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp">
+      <p class="field-hint">يفضّل WebP خفيف. ويمكن استخدام رابط مباشر من GitHub Pages.</p>
+      <label class="field">أو رابط صورة مباشر<input id="challengeCoverImageUrl" name="card_image_url" type="url" value="${escapeHtml(record?.card_image_url || '')}" placeholder="https://..."></label>
+      <div id="challengeCoverImagePreview" class="image-preview">معاينة الصورة</div>
+    </div>`,
     `<fieldset class="challenge-lessons-field full"><legend>الدروس المشاركة في التحدي</legend><p class="field-hint">يمكن اختيار درس واحد أو عدة دروس.</p><div class="challenge-lesson-list">${lessonChecks}</div></fieldset>`,
     field('card_count', 'عدد البطاقات', record?.card_count || 8, { type:'number', min:2, max:60, required:true }),
     `<div class="layout-field full">
@@ -923,6 +966,7 @@ function openChallengeEditor(record = null) {
   if (editing) idInput.readOnly = true;
   setupLevelLayoutEditor(record?.row_layout || '4-4');
   setupChallengeAccessEditor();
+  setupCoverImagePreview('#challengeCoverImageFile', '#challengeCoverImageUrl', '#challengeCoverImagePreview', record?.card_image_url || '', 'معاينة صورة التحدي');
   recordDialog.showModal();
 }
 
@@ -1597,6 +1641,7 @@ $('#addChallengeButton').addEventListener('click', () => openChallengeEditor());
 $('#addChallengeCardButton').addEventListener('click', () => openEditor('challenge_card'));
 $('#challengeCardFilter').addEventListener('change', renderChallengeCards);
 $('#saveChallengeSectionButton').addEventListener('click', saveChallengeSectionSetting);
+$('#challengeSectionCardImageUrl')?.addEventListener('input', renderChallengeSectionCardImagePreview);
 
 document.addEventListener('click', async (event) => {
   const editLesson = event.target.closest('[data-edit-lesson]');
@@ -1776,6 +1821,15 @@ function openEditor(type, record = null, copyMode = false) {
       field('lesson_name', 'اسم الدرس', record?.lesson_name || '', { required: true }),
       field('subject', 'المادة', record?.subject || 'العلوم', { required: true }),
       field('grade', 'الصف', record?.grade || 'الخامس الابتدائي', { required: true }),
+      `<label class="field full">وصف مختصر لبطاقة الدرس<textarea name="description" maxlength="500" placeholder="وصف قصير يظهر في صفحة اختيار الدروس">${escapeHtml(record?.description || '')}</textarea></label>`,
+      `<div class="image-field">
+        <label for="lessonCoverImageFile">صورة بطاقة الدرس من الجهاز</label>
+        <input id="lessonCoverImageFile" name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp">
+        <p class="field-hint">يفضّل WebP خفيف. يمكنك أيضًا رفع الصورة داخل GitHub Pages ثم لصق رابطها المباشر أدناه.</p>
+        <label class="field">أو رابط صورة مباشر<input id="lessonCoverImageUrl" name="card_image_url" type="url" value="${escapeHtml(record?.card_image_url || '')}" placeholder="https://..."></label>
+        <div id="lessonCoverImagePreview" class="image-preview">معاينة الصورة</div>
+      </div>`,
+      field('sort_order', 'ترتيب الدرس في الصفحة', record?.sort_order || state.lessons.length + 1, { type: 'number', min: 1, max: 9999, required: true }),
       field('source_file', 'اسم ملف المصدر', record?.source_file || '', { full: true }),
       field('lesson_status', 'حالة الدرس', record?.lesson_status || 'available', {
         type: 'select',
@@ -1793,6 +1847,7 @@ function openEditor(type, record = null, copyMode = false) {
       field('group_mode_enabled', 'إظهار اللعب الجماعي للطلاب', record ? record.group_mode_enabled : true, { type: 'checkbox' })
     ].join('');
     setupLessonAccessEditor();
+    setupCoverImagePreview('#lessonCoverImageFile', '#lessonCoverImageUrl', '#lessonCoverImagePreview', record?.card_image_url || '', 'معاينة صورة الدرس');
   } else if (type === 'level') {
     $('#dialogTitle').textContent = editing ? 'تعديل المستوى' : 'إضافة مستوى';
     const lessonItems = state.lessons.map((lesson) => ({ value: lesson.lesson_id, label: lesson.lesson_name }));
@@ -1919,8 +1974,27 @@ recordForm.addEventListener('submit', async (event) => {
   if (state.editingType === 'lesson') {
     values.group_mode_enabled = Boolean(recordForm.elements.group_mode_enabled?.checked);
     values.active = true;
+    values.sort_order = Number(values.sort_order || 0);
     values.locked_message = String(values.locked_message || 'قريبًا').trim() || 'قريبًا';
     values.access_code = String(values.access_code || '').trim();
+    const coverFile = recordForm.elements.cover_image_file?.files?.[0];
+    if (coverFile) {
+      if (coverFile.size > 4 * 1024 * 1024) {
+        formMessage.textContent = 'حجم صورة بطاقة الدرس أكبر من 4 ميجابايت.';
+        return;
+      }
+      try {
+        setBusy($('#saveRecordButton'), true, 'جارٍ رفع الصورة…');
+        const uploaded = await uploadImage(coverFile);
+        values.card_image_url = displayImageUrl(uploaded.image_url);
+      } catch (error) {
+        formMessage.textContent = error.message;
+        setBusy($('#saveRecordButton'), false, '');
+        return;
+      }
+    }
+    values.card_image_url = displayImageUrl(values.card_image_url || '');
+    delete values.cover_image_file;
     if (values.lesson_status === 'code' && !values.access_code) {
       formMessage.textContent = 'أدخل كود الدخول للدرس.';
       return;
@@ -1984,6 +2058,24 @@ recordForm.addEventListener('submit', async (event) => {
     values.row_layout = layoutRows.join('-');
     values.locked_message = String(values.locked_message || 'قريبًا').trim() || 'قريبًا';
     values.access_code = String(values.access_code || '').trim();
+    const coverFile = recordForm.elements.cover_image_file?.files?.[0];
+    if (coverFile) {
+      if (coverFile.size > 4 * 1024 * 1024) {
+        formMessage.textContent = 'حجم صورة بطاقة التحدي أكبر من 4 ميجابايت.';
+        return;
+      }
+      try {
+        setBusy($('#saveRecordButton'), true, 'جارٍ رفع الصورة…');
+        const uploaded = await uploadImage(coverFile);
+        values.card_image_url = displayImageUrl(uploaded.image_url);
+      } catch (error) {
+        formMessage.textContent = error.message;
+        setBusy($('#saveRecordButton'), false, '');
+        return;
+      }
+    }
+    values.card_image_url = displayImageUrl(values.card_image_url || '');
+    delete values.cover_image_file;
     if (values.challenge_status === 'code' && !values.access_code) {
       formMessage.textContent = 'أدخل كود الدخول للتحدي.';
       return;
@@ -2173,6 +2265,26 @@ function setupCardImagePreview(initialUrl) {
   const preview = $('#cardImagePreview');
   const show = (url) => {
     preview.innerHTML = url ? `<img src="${escapeHtml(displayImageUrl(url))}" alt="معاينة صورة البطاقة">` : 'معاينة الصورة';
+  };
+  show(initialUrl);
+  urlInput.addEventListener('input', () => show(urlInput.value.trim()));
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return show(urlInput.value.trim());
+    const reader = new FileReader();
+    reader.addEventListener('load', () => show(reader.result));
+    reader.readAsDataURL(file);
+  });
+}
+
+
+function setupCoverImagePreview(fileSelector, urlSelector, previewSelector, initialUrl, altText = 'معاينة صورة البطاقة') {
+  const fileInput = $(fileSelector);
+  const urlInput = $(urlSelector);
+  const preview = $(previewSelector);
+  if (!fileInput || !urlInput || !preview) return;
+  const show = (url) => {
+    preview.innerHTML = url ? `<img src="${escapeHtml(displayImageUrl(url))}" alt="${escapeHtml(altText)}">` : 'معاينة الصورة';
   };
   show(initialUrl);
   urlInput.addEventListener('input', () => show(urlInput.value.trim()));

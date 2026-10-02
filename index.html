@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5138">
   <title>لوحة معلم لعبة النباتات</title>
   <meta name="description" content="إدارة دروس ومستويات لعبة النباتات التعليمية">
-  <link rel="stylesheet" href="styles.css?v=1.0.7">
+  <link rel="stylesheet" href="styles.css?v=1.0.10">
 </head>
 <body>
 
@@ -61,7 +61,7 @@
         <div id="lessonsStatus" class="inline-status" aria-live="polite"></div>
         <div class="table-shell">
           <table>
-            <thead><tr><th>اسم الدرس</th><th>المادة</th><th>الصف</th><th>اللعب الجماعي</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <thead><tr><th>الصورة</th><th>اسم الدرس</th><th>المادة</th><th>الصف</th><th>الترتيب</th><th>اللعب الجماعي</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
             <tbody id="lessonsTable"></tbody>
           </table>
         </div>
@@ -237,6 +237,12 @@
               <span>عبارة القسم عند الإغلاق</span>
               <input id="challengeSectionLockedMessage" type="text" maxlength="180" value="قريبًا" placeholder="قريبًا">
             </label>
+            <label class="challenge-section-image-field">
+              <span>صورة بطاقة قسم التحدي الرئيسية</span>
+              <input id="challengeSectionCardImageUrl" type="url" maxlength="1000" placeholder="https://.../assets/lesson-covers/challenge.webp">
+              <small>يفضّل رابط WebP من GitHub Pages. هذه الصورة لقسم «التحدي» في صفحة الدروس وليست لصورة تحدٍ داخلي.</small>
+            </label>
+            <div id="challengeSectionCardImagePreview" class="challenge-section-image-preview">لا توجد صورة رئيسية بعد</div>
             <button id="saveChallengeSectionButton" class="secondary-button compact" type="button">حفظ الحالة</button>
           </div>
         </section>
@@ -244,7 +250,7 @@
         <div id="challengesStatus" class="inline-status" aria-live="polite"></div>
         <div class="table-shell">
           <table class="challenges-table">
-            <thead><tr><th>التحدي</th><th>الدروس المرتبطة</th><th>البطاقات</th><th>زمن السؤال</th><th>الإتاحة</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
+            <thead><tr><th>الصورة</th><th>التحدي</th><th>الدروس المرتبطة</th><th>البطاقات</th><th>زمن السؤال</th><th>الإتاحة</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
             <tbody id="challengesTable"></tbody>
           </table>
         </div>
@@ -401,6 +407,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="app.js?v=1.0.7" defer></script>
+  <script src="app.js?v=1.0.10" defer></script>
 </body>
 </html>
