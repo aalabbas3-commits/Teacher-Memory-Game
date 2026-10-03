@@ -1053,7 +1053,7 @@ function normalizeArabicText(value) {
 
 function normalizeClassName(value) {
   let text = normalizeArabicText(value)
-    .replace(/\bالصف\b/g, '')
+    .replace(/(^|\s)(?:الصف|صف)(?=\s|$)/g, '$1')
     .replace(/[\/\\|_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -1143,25 +1143,43 @@ function updateResultSchoolFilter() {
   const list = $('#resultSchoolOptions');
   if (!list) return;
   const lessonId = resultLessonFilterId();
-  const groups = new Map();
+  const values = new Map();
   resultFilterSourceRows()
     .filter((r) => !lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id) === lessonId))
-    .forEach((r)=>{ const original=String(r.school_name||'').trim(); if(original && !groups.has(normalizeSchoolName(original))) groups.set(normalizeSchoolName(original),original); });
-  list.innerHTML=[...groups.values()].sort((a,b)=>a.localeCompare(b,'ar')).map((v)=>`<option value="${escapeHtml(v)}"></option>`).join('');
+    .forEach((r) => {
+      const original = String(r.school_name || '').trim();
+      if (!original) return;
+      const rawKey = normalizeArabicText(original);
+      if (!values.has(rawKey)) values.set(rawKey, original);
+    });
+  // تُعرض جميع الصيغ الفعلية، بينما المطابقة عند الاختيار تتم بالصيغة الموحّدة.
+  list.innerHTML = [...values.values()]
+    .sort((a, b) => a.localeCompare(b, 'ar'))
+    .map((v) => `<option value="${escapeHtml(v)}"></option>`)
+    .join('');
 }
 
 function updateResultClassFilter() {
   const list = $('#resultClassOptions');
   if (!list) return;
   const lessonId = resultLessonFilterId();
-  const schoolText=String($('#resultSchoolFilter')?.value||'').trim();
-  const schoolKey=schoolText?normalizeSchoolName(schoolText):'';
-  const groups=new Map();
+  const schoolText = String($('#resultSchoolFilter')?.value || '').trim();
+  const schoolKey = schoolText ? normalizeSchoolName(schoolText) : '';
+  const values = new Map();
   resultFilterSourceRows()
-    .filter((r)=>!lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id)===lessonId))
-    .filter((r)=>!schoolKey || normalizeSchoolName(r.school_name)===schoolKey)
-    .forEach((r)=>{ const original=String(r.class_name||'').trim(); if(original){const key=normalizeClassName(original); if(!groups.has(key)) groups.set(key,classDisplayName(key,original));}});
-  list.innerHTML=[...groups.values()].sort((a,b)=>a.localeCompare(b,'ar')).map((v)=>`<option value="${escapeHtml(v)}"></option>`).join('');
+    .filter((r) => !lessonId || (lessonId !== '__NO_MATCH__' && String(r.lesson_id) === lessonId))
+    .filter((r) => !schoolKey || normalizeSchoolName(r.school_name) === schoolKey)
+    .forEach((r) => {
+      const original = String(r.class_name || '').trim();
+      if (!original) return;
+      const rawKey = normalizeArabicText(original);
+      if (!values.has(rawKey)) values.set(rawKey, original);
+    });
+  // تُعرض جميع الصيغ كما كُتبت، واختيار أي صيغة يجلب كل الصيغ المكافئة لها.
+  list.innerHTML = [...values.values()]
+    .sort((a, b) => a.localeCompare(b, 'ar'))
+    .map((v) => `<option value="${escapeHtml(v)}"></option>`)
+    .join('');
 }
 
 function resultDateKey(value) {
