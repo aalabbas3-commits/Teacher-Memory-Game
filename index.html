@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5138">
   <title>لوحة معلم لعبة النباتات</title>
   <meta name="description" content="إدارة دروس ومستويات لعبة النباتات التعليمية">
-  <link rel="stylesheet" href="styles.css?v=1.0.10">
+  <link rel="stylesheet" href="styles.css?v=1.0.11">
 </head>
 <body>
 
@@ -214,69 +214,86 @@
         <div id="questionsEmpty" class="empty-state" hidden>لا توجد أسئلة مطابقة للتصفية.</div>
       </section>
 
-      <section id="challengesPanel" class="panel" aria-labelledby="challengesHeading" hidden>
-        <div class="panel-heading">
+      <section id="challengesPanel" class="panel challenge-workspace" aria-labelledby="challengesHeading" hidden>
+        <div class="panel-heading challenge-main-heading">
           <div>
             <h2 id="challengesHeading">إدارة التحديات</h2>
-            <p>أنشئ تحديات لدرس واحد أو عدة دروس. القسم العام مخفي عن الطلاب افتراضيًا.</p>
+            <p>إعداد قسم التحدي، إدارة التحديات، وبطاقات كل تحدٍ من مكان واحد منظم.</p>
           </div>
-          <button id="addChallengeButton" class="primary-button compact" type="button">+ إضافة تحدٍ</button>
         </div>
 
-        <section class="challenge-section-control" aria-labelledby="challengeSectionTitle">
-          <div>
-            <strong id="challengeSectionTitle">ظهور قسم التحديات للطلاب</strong>
-            <p id="challengeSectionState">قسم التحديات مخفي بالكامل عن الطلاب حاليًا.</p>
+        <nav class="challenge-subtabs" aria-label="أقسام إدارة التحديات">
+          <button class="challenge-subtab" type="button" data-challenge-subtab="section">إعدادات القسم</button>
+          <button class="challenge-subtab active" type="button" data-challenge-subtab="manage">التحديات</button>
+          <button class="challenge-subtab" type="button" data-challenge-subtab="cards">بطاقات التحدي</button>
+        </nav>
+
+        <section class="challenge-subpanel" data-challenge-pane="section" hidden>
+          <div class="challenge-subpanel-heading">
+            <div>
+              <h3>إعدادات قسم التحدي</h3>
+              <p>هذه الإعدادات تخص بطاقة «التحدي» الرئيسية التي تظهر للطالب في صفحة الدروس.</p>
+            </div>
           </div>
-          <div class="challenge-section-actions">
-            <label class="switch-field">
-              <input id="challengeSectionEnabled" type="checkbox">
-              <span>إظهار القسم</span>
-            </label>
-            <label class="challenge-section-message-field">
-              <span>عبارة القسم عند الإغلاق</span>
-              <input id="challengeSectionLockedMessage" type="text" maxlength="180" value="قريبًا" placeholder="قريبًا">
-            </label>
-            <label class="challenge-section-image-field">
-              <span>صورة بطاقة قسم التحدي الرئيسية</span>
-              <input id="challengeSectionCardImageUrl" type="url" maxlength="1000" placeholder="https://.../assets/lesson-covers/challenge.webp">
-              <small>يفضّل رابط WebP من GitHub Pages. هذه الصورة لقسم «التحدي» في صفحة الدروس وليست لصورة تحدٍ داخلي.</small>
-            </label>
-            <div id="challengeSectionCardImagePreview" class="challenge-section-image-preview">لا توجد صورة رئيسية بعد</div>
-            <button id="saveChallengeSectionButton" class="secondary-button compact" type="button">حفظ الحالة</button>
-          </div>
+
+          <section class="challenge-section-control challenge-section-settings-card" aria-labelledby="challengeSectionTitle">
+            <div class="challenge-settings-intro">
+              <strong id="challengeSectionTitle">ظهور قسم التحديات للطلاب</strong>
+              <p id="challengeSectionState">قسم التحديات مخفي بالكامل عن الطلاب حاليًا.</p>
+            </div>
+            <div class="challenge-section-actions">
+              <label class="switch-field challenge-main-switch">
+                <input id="challengeSectionEnabled" type="checkbox">
+                <span>إظهار قسم التحدي</span>
+              </label>
+              <label class="challenge-section-message-field">
+                <span>عبارة القسم عند الإغلاق</span>
+                <input id="challengeSectionLockedMessage" type="text" maxlength="180" value="قريبًا" placeholder="قريبًا">
+              </label>
+              <label class="challenge-section-image-field">
+                <span>صورة بطاقة قسم التحدي الرئيسية</span>
+                <input id="challengeSectionCardImageUrl" type="url" maxlength="1000" placeholder="https://.../assets/lesson-covers/challenge.webp">
+                <small>يفضّل رابط WebP من GitHub Pages. هذه الصورة للقسم الرئيسي وليست لصورة تحدٍ داخلي.</small>
+              </label>
+              <div id="challengeSectionCardImagePreview" class="challenge-section-image-preview">لا توجد صورة رئيسية بعد</div>
+              <div class="challenge-save-row">
+                <button id="saveChallengeSectionButton" class="primary-button compact" type="button">حفظ إعدادات القسم</button>
+              </div>
+            </div>
+          </section>
         </section>
 
-        <div id="challengesStatus" class="inline-status" aria-live="polite"></div>
-        <div class="table-shell">
-          <table class="challenges-table">
-            <thead><tr><th>الصورة</th><th>التحدي</th><th>الدروس المرتبطة</th><th>البطاقات</th><th>زمن السؤال</th><th>الإتاحة</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
-            <tbody id="challengesTable"></tbody>
-          </table>
-        </div>
-        <div id="challengesEmpty" class="empty-state" hidden>لا توجد تحديات بعد.</div>
-
-        <section class="challenge-cards-manager" aria-labelledby="challengeCardsHeading">
-          <div class="panel-heading compact-heading">
+        <section class="challenge-subpanel active" data-challenge-pane="manage">
+          <div class="challenge-subpanel-heading">
             <div>
-              <h3 id="challengeCardsHeading">بطاقات التحدي المستقلة</h3>
-              <p>لكل تحدٍ بطاقاته الخاصة، ولا تُسحب بطاقات الدروس تلقائيًا.</p>
+              <h3>التحديات</h3>
+              <p>أنشئ تحديًا لدرس واحد أو عدة دروس، ثم عدّل حالته وإعداداته عند الحاجة.</p>
             </div>
-            <button id="addChallengeCardButton" class="primary-button compact" type="button">+ إضافة بطاقة تحدي</button>
+            <button id="addChallengeButton" class="primary-button compact" type="button">+ إضافة تحدٍ جديد</button>
           </div>
-          <div class="challenge-card-toolbar">
-            <label>التحدي
-              <select id="challengeCardFilter"></select>
-            </label>
-            <span id="challengeCardsStatus" class="inline-status" aria-live="polite"></span>
-          </div>
-          <div class="table-shell">
-            <table class="challenges-table">
-              <thead><tr><th>الصورة</th><th>البطاقة</th><th>التحدي</th><th>التفعيل</th><th>الإجراءات</th></tr></thead>
-              <tbody id="challengeCardsTable"></tbody>
-            </table>
-          </div>
-          <div id="challengeCardsEmpty" class="empty-state" hidden>لا توجد بطاقات لهذا التحدي بعد.</div>
+          <div id="challengesStatus" class="inline-status" aria-live="polite"></div>
+          <div id="challengeManagementCards" class="challenge-management-grid" aria-live="polite"></div>
+          <div id="challengesEmpty" class="empty-state" hidden>لا توجد تحديات بعد.</div>
+        </section>
+
+        <section class="challenge-subpanel" data-challenge-pane="cards" hidden>
+          <section class="challenge-cards-manager" aria-labelledby="challengeCardsHeading">
+            <div class="challenge-subpanel-heading">
+              <div>
+                <h3 id="challengeCardsHeading">بطاقات التحدي المستقلة</h3>
+                <p>اختر التحدي ثم أدر بطاقاته الخاصة. لا تُسحب بطاقات الدروس تلقائيًا.</p>
+              </div>
+              <button id="addChallengeCardButton" class="primary-button compact" type="button">+ إضافة بطاقة تحدي</button>
+            </div>
+            <div class="challenge-card-toolbar">
+              <label>التحدي
+                <select id="challengeCardFilter"></select>
+              </label>
+              <span id="challengeCardsStatus" class="inline-status" aria-live="polite"></span>
+            </div>
+            <div id="challengeCardsGrid" class="challenge-card-grid" aria-live="polite"></div>
+            <div id="challengeCardsEmpty" class="empty-state" hidden>لا توجد بطاقات لهذا التحدي بعد.</div>
+          </section>
         </section>
       </section>
 
@@ -407,6 +424,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="app.js?v=1.0.10" defer></script>
+  <script src="app.js?v=1.0.11" defer></script>
 </body>
 </html>

@@ -25,6 +25,7 @@ const state = {
   selectedSessionIds: new Set(),
   resultsView: 'best',
   activeTab: 'lessons',
+  challengeSubtab: 'manage',
   editingType: '',
   editingRecord: null
 };
@@ -789,12 +790,12 @@ function nextChallengeCardId() {
 }
 
 function renderChallengeCards() {
-  const table = $('#challengeCardsTable');
+  const grid = $('#challengeCardsGrid');
   const empty = $('#challengeCardsEmpty');
   const status = $('#challengeCardsStatus');
   const addButton = $('#addChallengeCardButton');
   const filter = $('#challengeCardFilter');
-  if (!table || !empty || !status || !addButton || !filter) return;
+  if (!grid || !empty || !status || !addButton || !filter) return;
 
   const challengeId = filter.value || state.challenges[0]?.challenge_id || '';
   if (challengeId && !filter.value) filter.value = challengeId;
@@ -807,23 +808,28 @@ function renderChallengeCards() {
   status.textContent = challengeId
     ? `${activeCount} بطاقة مفعلة${requiredPairs ? ` — المطلوب للجولة ${requiredPairs} أزواج` : ''}`
     : 'أنشئ تحديًا أولًا.';
-  table.innerHTML = rows.map((card) => `
-    <tr>
-      <td>${card.image_url ? `<img class="card-thumb" src="${escapeHtml(displayImageUrl(card.image_url))}" alt="${escapeHtml(card.image_description || card.card_title)}" loading="lazy">` : '<span class="card-thumb placeholder">بلا صورة</span>'}</td>
-      <td><strong>${escapeHtml(card.card_title || '—')}</strong><br><small>${escapeHtml(card.challenge_card_id || '')}</small></td>
-      <td>${escapeHtml(state.challenges.find((item) => String(item.challenge_id) === String(card.challenge_id))?.challenge_name || card.challenge_id || '—')}</td>
-      <td>${statusBadge(card.active)}</td>
-      <td><div class="row-actions">
-        <button class="row-button" type="button" data-edit-challenge-card="${escapeHtml(card.challenge_card_id)}">تعديل</button>
-        <button class="row-button ${activeValue(card.active) ? 'danger' : 'activate'}" type="button" data-toggle-challenge-card="${escapeHtml(card.challenge_card_id)}">${activeValue(card.active) ? 'تعطيل' : 'تفعيل'}</button>
-      </div></td>
-    </tr>`).join('');
+
+  grid.innerHTML = rows.map((card) => `
+    <article class="challenge-asset-card${activeValue(card.active) ? '' : ' is-disabled'}">
+      <div class="challenge-asset-media">
+        ${card.image_url ? `<img src="${escapeHtml(displayImageUrl(card.image_url))}" alt="${escapeHtml(card.image_description || card.card_title)}" loading="lazy">` : '<span class="challenge-asset-placeholder">بلا صورة</span>'}
+      </div>
+      <div class="challenge-asset-body">
+        <strong>${escapeHtml(card.card_title || 'بطاقة بدون عنوان')}</strong>
+        <small>${escapeHtml(card.challenge_card_id || '')}</small>
+        <div class="challenge-asset-meta">${statusBadge(card.active)}</div>
+        <div class="row-actions challenge-card-actions">
+          <button class="row-button" type="button" data-edit-challenge-card="${escapeHtml(card.challenge_card_id)}">تعديل</button>
+          <button class="row-button ${activeValue(card.active) ? 'danger' : 'activate'}" type="button" data-toggle-challenge-card="${escapeHtml(card.challenge_card_id)}">${activeValue(card.active) ? 'تعطيل' : 'تفعيل'}</button>
+        </div>
+      </div>
+    </article>`).join('');
   empty.hidden = rows.length > 0;
 }
 
 function renderChallenges() {
-  const tbody = $('#challengesTable');
-  if (!tbody) return;
+  const grid = $('#challengeManagementCards');
+  if (!grid) return;
   const enabled = challengeSectionEnabled();
   $('#challengeSectionEnabled').checked = enabled;
   const lockedMessageInput = $('#challengeSectionLockedMessage');
@@ -837,24 +843,58 @@ function renderChallenges() {
   $('#challengeSectionState').classList.toggle('warning', !enabled);
 
   const rows = [...state.challenges].sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  tbody.innerHTML = rows.map((challenge) => {
+  grid.innerHTML = rows.map((challenge) => {
     const lessons = challengeLessonNames(challenge.challenge_id);
-    return `<tr>
-      <td>${challenge.card_image_url ? `<img class="card-thumb lesson-cover-thumb" src="${escapeHtml(displayImageUrl(challenge.card_image_url))}" alt="${escapeHtml(challenge.challenge_name || 'صورة التحدي')}" loading="lazy">` : '<span class="card-thumb placeholder">بلا صورة</span>'}</td>
-      <td><strong>${escapeHtml(challenge.challenge_name || '—')}</strong><br><small>${escapeHtml(challenge.challenge_id || '')}</small></td>
-      <td>${lessons.length ? lessons.map(escapeHtml).join('، ') : '<span class="muted">لا يوجد درس مرتبط</span>'}</td>
-      <td>${escapeHtml(challenge.card_count || '—')}<br><small>متاح: ${challengeCardRows(challenge.challenge_id).filter((card) => activeValue(card.active)).length}</small></td>
-      <td>${escapeHtml(challenge.question_time_seconds || '—')} ثانية</td>
-      <td>${challengeStatusBadge(challenge)}</td>
-      <td>${statusBadge(challenge.active)}</td>
-      <td><div class="row-actions">
-        <button class="row-button" type="button" data-edit-challenge="${escapeHtml(challenge.challenge_id)}">تعديل</button>
-        <button class="row-button ${activeValue(challenge.active) ? 'danger' : 'activate'}" type="button" data-toggle-challenge="${escapeHtml(challenge.challenge_id)}">${activeValue(challenge.active) ? 'تعطيل' : 'تفعيل'}</button>
-      </div></td>
-    </tr>`;
+    const activeCards = challengeCardRows(challenge.challenge_id).filter((card) => activeValue(card.active)).length;
+    const statusText = String(challenge.challenge_status || 'hidden');
+    const statusLabel = statusText === 'available' ? 'متاح' : statusText === 'locked' ? 'مغلق' : statusText === 'code' ? 'بالكود' : 'مخفي';
+    return `<article class="challenge-management-card${activeValue(challenge.active) ? '' : ' is-disabled'}">
+      <div class="challenge-management-media">
+        ${challenge.card_image_url ? `<img src="${escapeHtml(displayImageUrl(challenge.card_image_url))}" alt="${escapeHtml(challenge.challenge_name || 'صورة التحدي')}" loading="lazy">` : '<span class="challenge-management-placeholder">بلا صورة</span>'}
+        <span class="challenge-management-status status-${escapeHtml(statusText)}">${escapeHtml(statusLabel)}</span>
+      </div>
+      <div class="challenge-management-body">
+        <div class="challenge-management-title-row">
+          <div>
+            <strong>${escapeHtml(challenge.challenge_name || '—')}</strong>
+            <small>${escapeHtml(challenge.challenge_id || '')}</small>
+          </div>
+          ${statusBadge(challenge.active)}
+        </div>
+        <div class="challenge-lesson-chips">${lessons.length ? lessons.map((name) => `<span>${escapeHtml(name)}</span>`).join('') : '<span class="empty-chip">لا يوجد درس مرتبط</span>'}</div>
+        <div class="challenge-management-stats">
+          <span><b>${escapeHtml(challenge.card_count || '—')}</b> بطاقة</span>
+          <span><b>${activeCards}</b> مفعلة</span>
+          <span><b>${escapeHtml(challenge.question_time_seconds || '—')}</b> ثانية</span>
+        </div>
+        <div class="row-actions challenge-management-actions">
+          <button class="row-button" type="button" data-edit-challenge="${escapeHtml(challenge.challenge_id)}">تعديل</button>
+          <button class="row-button" type="button" data-open-challenge-cards="${escapeHtml(challenge.challenge_id)}">البطاقات</button>
+          <button class="row-button ${activeValue(challenge.active) ? 'danger' : 'activate'}" type="button" data-toggle-challenge="${escapeHtml(challenge.challenge_id)}">${activeValue(challenge.active) ? 'تعطيل' : 'تفعيل'}</button>
+        </div>
+      </div>
+    </article>`;
   }).join('');
   $('#challengesEmpty').hidden = rows.length > 0;
   $('#challengesStatus').textContent = `${rows.length} تحدٍ`;
+  updateChallengeCardFilter();
+  renderChallengeCards();
+}
+
+function switchChallengeSubtab(name) {
+  const target = ['section', 'manage', 'cards'].includes(name) ? name : 'manage';
+  state.challengeSubtab = target;
+  $$('.challenge-subtab').forEach((button) => button.classList.toggle('active', button.dataset.challengeSubtab === target));
+  $$('[data-challenge-pane]').forEach((pane) => {
+    pane.hidden = pane.dataset.challengePane !== target;
+    pane.classList.toggle('active', pane.dataset.challengePane === target);
+  });
+  if (target === 'section') renderChallenges();
+  if (target === 'manage') renderChallenges();
+  if (target === 'cards') {
+    updateChallengeCardFilter();
+    renderChallengeCards();
+  }
 }
 
 async function saveChallengeSectionSetting() {
@@ -1575,7 +1615,7 @@ $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
   if (state.activeTab === 'levels') renderLevels();
   if (state.activeTab === 'cards') renderCards();
   if (state.activeTab === 'questions') renderQuestions();
-  if (state.activeTab === 'challenges') renderChallenges();
+  if (state.activeTab === 'challenges') { renderChallenges(); switchChallengeSubtab(state.challengeSubtab || 'manage'); }
   if (state.activeTab === 'results') renderResults();
   if (state.activeTab === 'notes') renderNotes();
 }));
@@ -1642,6 +1682,7 @@ $('#addChallengeCardButton').addEventListener('click', () => openEditor('challen
 $('#challengeCardFilter').addEventListener('change', renderChallengeCards);
 $('#saveChallengeSectionButton').addEventListener('click', saveChallengeSectionSetting);
 $('#challengeSectionCardImageUrl')?.addEventListener('input', renderChallengeSectionCardImagePreview);
+$$('.challenge-subtab').forEach((button) => button.addEventListener('click', () => switchChallengeSubtab(button.dataset.challengeSubtab)));
 
 document.addEventListener('click', async (event) => {
   const editLesson = event.target.closest('[data-edit-lesson]');
@@ -1661,6 +1702,7 @@ document.addEventListener('click', async (event) => {
   const toggleChallenge = event.target.closest('[data-toggle-challenge]');
   const editChallengeCard = event.target.closest('[data-edit-challenge-card]');
   const toggleChallengeCard = event.target.closest('[data-toggle-challenge-card]');
+  const openChallengeCards = event.target.closest('[data-open-challenge-cards]');
   if (editLesson) openEditor('lesson', state.lessons.find((row) => row.lesson_id === editLesson.dataset.editLesson));
   if (toggleGroupMode) await toggleLessonGroupMode(toggleGroupMode.dataset.toggleGroupMode, toggleGroupMode);
   if (toggleLesson) await toggleEntityActive('lessons', toggleLesson.dataset.toggleLesson, toggleLesson);
@@ -1677,6 +1719,7 @@ document.addEventListener('click', async (event) => {
   if (toggleChallenge) await toggleEntityActive('challenges', toggleChallenge.dataset.toggleChallenge, toggleChallenge);
   if (editChallengeCard) openEditor('challenge_card', state.challengeCards.find((row) => String(row.challenge_card_id) === String(editChallengeCard.dataset.editChallengeCard)));
   if (toggleChallengeCard) await toggleEntityActive('challenge_cards', toggleChallengeCard.dataset.toggleChallengeCard, toggleChallengeCard);
+  if (openChallengeCards) { const id = openChallengeCards.dataset.openChallengeCards; const filter = $('#challengeCardFilter'); if (filter) filter.value = id; switchChallengeSubtab('cards'); renderChallengeCards(); }
   if (usageEditQuestion) {
     $('#questionUsageDialog').close();
     openEditor('question', state.questions.find((row) => String(row.question_id) === String(usageEditQuestion.dataset.usageEditQuestion)));
