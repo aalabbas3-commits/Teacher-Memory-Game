@@ -1,4 +1,5 @@
 'use strict';
+// إصدار لوحة المعلم: 1.0.13 — تحميل كسول وتحسين الأداء
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyfeSB3gvBHTfHuCwozfPG-GUflo6AmJmer8HJSUStmY_IdCutZWJdnHTsVfIfdpHfc/exec';
 
@@ -27,7 +28,9 @@ const state = {
   activeTab: 'lessons',
   challengeSubtab: 'manage',
   editingType: '',
-  editingRecord: null
+  editingRecord: null,
+  loaded: { lessons:false, levels:false, topics:false, appearance:false, cards:false, questions:false, challenges:false, results:false, notes:false },
+  loading: new Map()
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -55,6 +58,58 @@ async function api(action, payload = {}) {
   const result = await response.json();
   if (!result.ok) throw new Error(result.error || 'لم تكتمل العملية.');
   return result.data;
+}
+
+async function loadOnce(key, loader) {
+  if (state.loaded[key]) return;
+  if (state.loading.has(key)) return state.loading.get(key);
+  const promise = Promise.resolve()
+    .then(loader)
+    .then(() => { state.loaded[key] = true; })
+    .finally(() => state.loading.delete(key));
+  state.loading.set(key, promise);
+  return promise;
+}
+
+async function ensureTabData(tabName) {
+  await loadOnce('lessons', loadLessons);
+  if (tabName === 'lessons') return;
+  if (tabName === 'levels') {
+    await loadOnce('levels', loadLevels);
+    return;
+  }
+  if (tabName === 'appearance') {
+    await loadOnce('appearance', loadAppearanceData);
+    updateAppearanceLessonFilter();
+    renderAppearancePanel();
+    return;
+  }
+  if (tabName === 'cards') {
+    await Promise.all([loadOnce('topics', loadTopics), loadOnce('cards', loadCards)]);
+    renderCards();
+    return;
+  }
+  if (tabName === 'questions') {
+    await Promise.all([loadOnce('topics', loadTopics), loadOnce('questions', loadQuestions)]);
+    updateQuestionTopicFilter();
+    renderQuestions();
+    return;
+  }
+  if (tabName === 'challenges') {
+    await Promise.all([loadOnce('appearance', loadAppearanceData), loadOnce('challenges', loadChallenges)]);
+    renderChallenges();
+    switchChallengeSubtab(state.challengeSubtab || 'manage');
+    return;
+  }
+  if (tabName === 'results') {
+    await Promise.all([loadOnce('questions', loadQuestions), loadOnce('results', loadResults)]);
+    renderResults();
+    return;
+  }
+  if (tabName === 'notes') {
+    await loadOnce('notes', loadNotes);
+    renderNotes();
+  }
 }
 
 function setBusy(button, busy, text) {
@@ -189,31 +244,17 @@ $('#logoutButton').addEventListener('click', () => {
 });
 
 async function loadAll() {
-  await Promise.all([
-    loadLessons(),
-    loadLevels(),
-    loadTopics(),
-    loadAppearanceData(),
-    loadChallenges()
-  ]);
+  // البداية أصبحت خفيفة: نحمل الدروس فقط، وبقية البيانات عند فتح تبويبها أول مرة.
+  await loadOnce('lessons', loadLessons);
   updateLessonFilter();
-  updateAppearanceLessonFilter();
-  renderAppearancePanel();
-  renderLevels();
-  renderChallenges();
+  renderLessons();
 
-  Promise.all([
-    loadCards(),
-    loadQuestions(),
-    loadResults(),
-    loadNotes()
-  ]).then(() => {
-    renderCards();
-    updateQuestionTopicFilter();
-    renderQuestions();
-    renderResults();
-    renderNotes();
-  });
+  // تجهيز خفيف بالخلفية بعد استقرار الصفحة، بدون سحب النتائج/الأسئلة/البطاقات الثقيلة.
+  const warm = () => {
+    loadOnce('levels', loadLevels).catch(() => {});
+  };
+  if ('requestIdleCallback' in window) window.requestIdleCallback(warm, { timeout: 1800 });
+  else window.setTimeout(warm, 900);
 }
 
 async function loadLessons() {
@@ -222,6 +263,7 @@ async function loadLessons() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'lessons', limit: 500 } });
     state.lessons = data.rows || [];
+    state.loaded.lessons = true;
     renderLessons();
     updateLessonFilter();
     updateAppearanceLessonFilter();
@@ -237,6 +279,7 @@ async function loadLevels() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'levels', limit: 500 } });
     state.levels = data.rows || [];
+    state.loaded.levels = true;
     renderLevels();
     status.textContent = `${state.levels.length} مستوى`;
   } catch (error) {
@@ -285,6 +328,7 @@ async function loadAppearanceData() {
   state.themes = (themeData.rows || []).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   state.displayModes = (modeData.rows || []).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   state.settings = settingData.rows || [];
+  state.loaded.appearance = true;
 }
 
 function appearanceSettingRow(lessonId, key) {
@@ -516,6 +560,7 @@ async function loadTopics() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'topics', limit: 1000 } });
     state.topics = data.rows || [];
+    state.loaded.topics = true;
   } catch (error) {
     state.topics = [];
     $('#cardsStatus').textContent = error.message;
@@ -528,6 +573,7 @@ async function loadCards() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'cards', limit: 2000 } });
     state.cards = data.rows || [];
+    state.loaded.cards = true;
     renderCards();
     status.textContent = `${state.cards.length} زوج بطاقات`;
   } catch (error) {
@@ -564,6 +610,7 @@ async function loadQuestions() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'questions', limit: 2000 } });
     state.questions = data.rows || [];
+    state.loaded.questions = true;
     updateQuestionTopicFilter();
     renderQuestions();
   } catch (error) {
@@ -737,6 +784,7 @@ async function loadChallenges() {
       api('teacher_list', { params: { sheet: 'challenge_cards', limit: 3000 } })
     ]);
     state.challenges = challengeData.rows || [];
+    state.loaded.challenges = true;
     state.challengeLessons = linkData.rows || [];
     state.challengeCards = cardData.rows || [];
     updateChallengeCardFilter();
@@ -1024,6 +1072,7 @@ async function loadResults() {
       api('teacher_list', { params: { sheet: 'student_sessions', limit: 2000 } }).catch(() => ({ rows: [] }))
     ]);
     state.results = resultsData.rows || [];
+    state.loaded.results = true;
     state.answerLogs = answersData.rows || [];
     state.levelResults = levelResultsData.rows || [];
     state.teamResults = teamResultsData.rows || [];
@@ -1485,6 +1534,7 @@ async function loadNotes() {
   try {
     const data = await api('teacher_list', { params: { sheet: 'notes', limit: 2000 } });
     state.notes = data.rows || [];
+    state.loaded.notes = true;
     updateNoteClassFilter();
     renderNotes();
   } catch (error) {
@@ -1618,7 +1668,7 @@ function exportNotes() {
   downloadCsv(`ملاحظات-لعبة-النباتات-${new Date().toISOString().slice(0, 10)}.csv`, headers, data);
 }
 
-$$('.tab').forEach((tab) => tab.addEventListener('click', () => {
+$$('.tab').forEach((tab) => tab.addEventListener('click', async () => {
   state.activeTab = tab.dataset.tab;
   $$('.tab').forEach((item) => item.classList.toggle('active', item === tab));
   $('#lessonsPanel').hidden = state.activeTab !== 'lessons';
@@ -1629,8 +1679,14 @@ $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
   $('#challengesPanel').hidden = state.activeTab !== 'challenges';
   $('#resultsPanel').hidden = state.activeTab !== 'results';
   $('#notesPanel').hidden = state.activeTab !== 'notes';
-  if (state.activeTab === 'appearance') renderAppearancePanel();
+  try {
+    await ensureTabData(state.activeTab);
+  } catch (error) {
+    showToast(error.message || 'تعذر تحميل بيانات هذا القسم.');
+  }
+  if (state.activeTab === 'lessons') renderLessons();
   if (state.activeTab === 'levels') renderLevels();
+  if (state.activeTab === 'appearance') renderAppearancePanel();
   if (state.activeTab === 'cards') renderCards();
   if (state.activeTab === 'questions') renderQuestions();
   if (state.activeTab === 'challenges') { renderChallenges(); switchChallengeSubtab(state.challengeSubtab || 'manage'); }
