@@ -581,3 +581,4 @@ dialog form { padding: 24px; overflow-y: auto; max-height: 90vh; }
   .challenge-asset-body { padding: 9px; }
   .challenge-card-actions { grid-template-columns: 1fr; }
 }
+\n\n/* 1.0.14 — مؤشر استخدام السؤال */\n.usage-count-pill {\n  display:inline-grid; place-items:center; min-width:34px; min-height:30px; padding:4px 8px;\n  border-radius:999px; background:#e8f1fb; color:#235b86; font-weight:900;\n}\n.usage-count-pill.is-unused { background:#fff1d6; color:#8a5a00; }\n

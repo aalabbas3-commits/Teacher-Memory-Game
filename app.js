@@ -654,6 +654,7 @@ function renderQuestions() {
       <td>${escapeHtml(topicName(question.topic_id))}</td>
       <td>${escapeHtml(questionTypeName(question.question_type))}</td>
       <td>${escapeHtml(question.difficulty || '—')}</td>
+      <td><span class="usage-count-pill${Number(question.usage_count || 0) === 0 ? ' is-unused' : ''}">${escapeHtml(Number(question.usage_count || 0))}</span></td>
       <td>${activeValue(question.higher_order) ? '<span class="hots-pill">نعم</span>' : 'لا'}</td>
       <td class="challenge-checkbox-cell"><input class="challenge-question-checkbox" type="checkbox" data-question-challenge="${escapeHtml(question.question_id)}" ${activeValue(question['التحدي']) ? 'checked' : ''} aria-label="استخدام السؤال في التحديات"></td>
       <td>${statusBadge(question.active)}</td>
@@ -667,20 +668,12 @@ function renderQuestions() {
 }
 
 function questionUsageStats() {
-  const stats = new Map(state.questions.map((question) => [String(question.question_id), {
+  return state.questions.map((question) => ({
     question,
-    shown: 0,
-    correct: 0,
-    wrong: 0
-  }]));
-  state.answerLogs.forEach((answer) => {
-    const item = stats.get(String(answer.question_id));
-    if (!item) return;
-    item.shown += 1;
-    if (activeValue(answer.is_correct)) item.correct += 1;
-    else item.wrong += 1;
-  });
-  return [...stats.values()];
+    shown: Math.max(0, Number(question.usage_count || 0)),
+    correct: Math.max(0, Number(question.correct_count || 0)),
+    wrong: Math.max(0, Number(question.wrong_count || 0))
+  }));
 }
 
 function renderQuestionUsageStats() {
